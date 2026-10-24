@@ -17,7 +17,19 @@ from views.login import render as render_login
 
 st.set_page_config(page_title="ResearchIQ", page_icon="✳", layout="wide")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-cookie_password = os.getenv("SESSION_COOKIE_PASSWORD", "").strip()
+
+def get_setting(name, default=""):
+    """Read local environment variables or hosted Streamlit secrets."""
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        return st.secrets.get(name, default)
+    except Exception:
+        return default
+
+
+cookie_password = get_setting("SESSION_COOKIE_PASSWORD").strip()
 if not cookie_password:
     st.error("Set SESSION_COOKIE_PASSWORD in the project-root .env to enable sign-in across browser refreshes.")
     st.stop()
@@ -25,7 +37,7 @@ cookies = EncryptedCookieManager(prefix="researchiq/", password=cookie_password)
 if not cookies.ready():
     st.stop()
 styles()
-backend = os.getenv("RESEARCHIQ_API_URL", "http://localhost:8000")
+backend = get_setting("RESEARCHIQ_API_URL", "http://localhost:8000")
 try:
     config = requests.get(backend.rstrip("/") + "/api/config", timeout=8).json()
 except Exception:
