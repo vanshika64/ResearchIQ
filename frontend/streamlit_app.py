@@ -37,7 +37,10 @@ cookies = EncryptedCookieManager(prefix="researchiq/", password=cookie_password)
 if not cookies.ready():
     st.stop()
 styles()
-backend = get_setting("RESEARCHIQ_API_URL", "http://localhost:8000")
+backend = get_setting(
+    "RESEARCHIQ_API_URL",
+    "https://researchiq-backend-qj23.onrender.com",
+)
 try:
     config = requests.get(backend.rstrip("/") + "/api/config", timeout=8).json()
 except Exception:
