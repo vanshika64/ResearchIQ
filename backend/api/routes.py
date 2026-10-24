@@ -48,7 +48,8 @@ async def upload_paper(file: UploadFile = File(...), user=Depends(current_user),
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(503, f"Hugging Face embedding setup failed: {exc}. If the model is not cached, set HF_LOCAL_FILES_ONLY=false and allow Hugging Face downloads on the first upload.") from exc
+        logger.exception("Embedding setup failed while indexing uploaded paper")
+        raise HTTPException(503, f"Embedding setup failed: {exc}") from exc
     full_text = "\n\n".join(text for _, text in pages)
     title = re.sub(r"\.pdf$", "", filename, flags=re.I)
     paper = Paper(owner_id=user, title=title, filename=filename, text=full_text)

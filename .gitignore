@@ -7,6 +7,7 @@ node_modules/
 backend/*.db
 backend/local_storage/
 backend/vector_stores/
+backend/.hf_cache/
 backend/logs/*.log
 __pycache__/
 *.py[cod]

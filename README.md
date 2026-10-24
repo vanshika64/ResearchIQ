@@ -28,7 +28,7 @@ cd backend
 uvicorn main:app --reload --port 8000
 ```
 
-The first upload downloads the Hugging Face embedding model unless `HF_LOCAL_FILES_ONLY=true` and a local model copy is already cached. It stores normalized chunk vectors with each user's paper records in the configured database. Tables are created automatically. Papers uploaded before the chunk index existed must be uploaded again to be searchable.
+The backend uses Hugging Face `sentence-transformers/all-MiniLM-L6-v2` embeddings. On Render, set the service root directory to `backend`, use `pip install -r requirements.txt && python preload_embedding_model.py` as the build command, and set `HF_LOCAL_FILES_ONLY=true` in the service environment. The build downloads and warms the model into `backend/.hf_cache`, which is included in the deployment so paper uploads do not need to download it at runtime. Locally, the model downloads on first use. Paper chunks and normalized vectors are stored with each user's paper records in the configured database. Tables are created automatically. Papers uploaded before the chunk index existed must be uploaded again to be searchable.
 
 ## Run the frontend
 
