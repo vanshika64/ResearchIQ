@@ -1,0 +1,13 @@
+.env
+.env.example
+backend/.env
+venv/
+.venv/
+node_modules/
+backend/*.db
+backend/local_storage/
+backend/vector_stores/
+backend/logs/*.log
+__pycache__/
+*.py[cod]
+.streamlit/secrets.toml
