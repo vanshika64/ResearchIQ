@@ -6,7 +6,7 @@ ResearchIQ is a split frontend/backend medical-literature assistant. Streamlit p
 
 The backend reads the project-root `.env` file regardless of its working directory. This also avoids falling back to placeholder Supabase settings when the server is started inside `backend/`. Keep real credentials in that file and never commit it. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER=groq`, and `EMBEDDINGS_PROVIDER=huggingface`. The service role key stays server-side and is not needed for the current login flow.
 
-Enable Email and Google under Supabase **Authentication → Providers**. Set `FRONTEND_URL=http://localhost:8501` and add that exact URL to Supabase **Authentication → URL Configuration → Redirect URLs**. The app sends it as the email confirmation redirect and offers a resend button. Supabase will confirm the address and return to the app; the user then signs in with their password. Configure `CORS_ORIGINS` for the frontend origin(s).
+Enable Email and Google under Supabase **Authentication → Providers**. For local development, set `FRONTEND_URL=http://localhost:8501`; on Render, set `FRONTEND_URL=https://research-iq1.streamlit.app`. Add both frontend URLs to Supabase **Authentication → URL Configuration → Redirect URLs**. The app sends the configured URL as the email confirmation and Google sign-in redirect. Set `CORS_ORIGINS` to the frontend origins you use, including `https://research-iq1.streamlit.app` for the deployed app.
 
 Set a long, random `SESSION_COOKIE_PASSWORD` in the project-root `.env`; the frontend uses it to encrypt the Supabase refresh token so it can restore a login after a browser refresh. Keep this value stable across app restarts and private to the server.
 

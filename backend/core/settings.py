@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default="https://placeholder-id.supabase.co")
     SUPABASE_ANON_KEY: str = Field(default="placeholder-anon-key")
     SUPABASE_SERVICE_KEY: Optional[str] = Field(default=None)
-    FRONTEND_URL: str = Field(default="http://localhost:8501")
+    FRONTEND_URL: str = Field(default="https://research-iq1.streamlit.app")
 
     # Database Settings
     # Fallback to local SQLite for easy local validation if DATABASE_URL is not set
@@ -56,7 +56,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60)
 
     # CORS Origin Settings
-    CORS_ORIGINS: str = Field(default="*")
+    CORS_ORIGINS: str = Field(
+        default="https://research-iq1.streamlit.app,http://localhost:8501,http://127.0.0.1:8501"
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[2] / ".env",
