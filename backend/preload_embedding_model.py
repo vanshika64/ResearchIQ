@@ -6,7 +6,8 @@ import time
 
 from core.settings import settings
 
-os.environ.setdefault("HF_HOME", str(Path(__file__).resolve().parent / ".hf_cache"))
+MODEL_CACHE_DIR = Path(__file__).resolve().parent / ".hf_cache"
+os.environ.setdefault("HF_HOME", str(MODEL_CACHE_DIR))
 
 from sentence_transformers import SentenceTransformer
 
@@ -18,10 +19,22 @@ def main() -> None:
             model = SentenceTransformer(
                 settings.EMBEDDINGS_MODEL,
                 local_files_only=False,
+                cache_folder=str(MODEL_CACHE_DIR),
                 device="cpu",
             )
             model.encode(["ResearchIQ embedding model warmup"], show_progress_bar=False)
+
+            # Fail the Render build if the downloaded files cannot also be
+            # loaded offline from the exact cache path used by the API.
+            offline_model = SentenceTransformer(
+                settings.EMBEDDINGS_MODEL,
+                local_files_only=True,
+                cache_folder=str(MODEL_CACHE_DIR),
+                device="cpu",
+            )
+            offline_model.encode(["ResearchIQ offline cache check"], show_progress_bar=False)
             print(f"Embedding model ready: {settings.EMBEDDINGS_MODEL}")
+            print(f"Verified offline model cache: {MODEL_CACHE_DIR}")
             return
         except Exception as exc:
             last_error = exc
