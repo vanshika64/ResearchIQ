@@ -57,11 +57,12 @@ def _clear_oauth_cookies(cookies):
     return changed
 
 
-def _google_redirect_url(frontend_url):
+def _auth_redirect_url(frontend_url, flow):
     parts = urlsplit(frontend_url)
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    query["auth_flow"] = "google"
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    query["auth_flow"] = flow
+    path = parts.path.rstrip("/")
+    return urlunsplit((parts.scheme, parts.netloc, path, urlencode(query), parts.fragment))
 
 
 def _save_session(result, cookies):
@@ -91,6 +92,20 @@ def _auth_error(exc):
     if "weak password" in lowered or "password should be" in lowered:
         return "Choose a stronger password that meets the password requirements configured in Supabase."
     return message
+
+
+def _is_invalid_credentials(exc):
+    message = str(getattr(exc, "message", None) or exc).lower()
+    return any(term in message for term in (
+        "invalid login credentials",
+        "invalid credentials",
+        "invalid email or password",
+        "email or password is incorrect",
+        "user already registered",
+        "email already registered",
+        "weak password",
+        "password should be",
+    ))
 
 
 def render(url, anon_key, frontend_url=None, cookies=None):
@@ -142,7 +157,35 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
                 st.session_state.auth_callback_error = f"{prefix}: {callback_error_query}"
                 st.rerun()
-            if code and auth_flow == "google":
+            if code and auth_flow == "email":
+                # Supabase verifies the email link before redirecting here. Exchange
+                # the PKCE code when the original browser still has its verifier;
+                # cross-device confirmation can still finish and sign in manually.
+                try:
+                    if storage.get_item("researchiq-code-verifier"):
+                        result = client.auth.exchange_code_for_session({"auth_code": code})
+                        _clear_oauth_cookies(cookies)
+                        _save_session(result, cookies)
+                        st.session_state.verification_waiting = False
+                        st.query_params.clear()
+                        st.rerun()
+                except Exception:
+                    # Confirmation itself has already been accepted by Supabase.
+                    pass
+                _clear_oauth_cookies(cookies)
+                cookies.save()
+                st.query_params.clear()
+                st.session_state.verification_waiting = False
+                st.session_state.verification_returned = True
+                st.rerun()
+            elif code and (
+                auth_flow == "google"
+                or (
+                    not auth_flow
+                    and not st.session_state.get("verification_waiting", False)
+                    and storage.has_oauth_verifier()
+                )
+            ):
                 if storage.has_oauth_verifier():
                     try:
                         # supabase-py expects an object containing auth_code, not a bare string.
@@ -165,21 +208,24 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                     st.session_state.auth_callback_error = "Google sign-in expired before it finished. Click Continue with Google and complete the sign-in within 15 minutes."
                     st.rerun()
             elif code:
-                # Confirmation emails return a code without auth_flow=google.
+                # Never report an unknown callback as a successful email confirmation.
+                # Google callbacks must preserve auth_flow through Supabase's redirect allowlist.
                 _clear_oauth_cookies(cookies)
                 cookies.save()
                 st.query_params.clear()
-                st.session_state.verification_waiting = False
-                st.session_state.verification_returned = True
+                st.session_state.auth_callback_error = (
+                    "The sign-in callback did not include its flow type, so the app could not safely finish authentication. "
+                    "Add these exact URLs under Supabase Auth → URL Configuration → Redirect URLs: "
+                    "https://research-iq1.streamlit.app?auth_flow=google and "
+                    "https://research-iq1.streamlit.app?auth_flow=email, then retry."
+                )
                 st.rerun()
 
             signin, signup = st.columns(2)
             with signin:
                 if st.button("Sign in", type="primary", use_container_width=True):
-                    if not _EMAIL_RE.fullmatch(email):
-                        st.error("Enter a valid email address.")
-                    elif not password:
-                        st.error("Enter your password.")
+                    if not _EMAIL_RE.fullmatch(email) or not password:
+                        st.warning("Enter valid credentials.")
                     else:
                         try:
                             result = client.auth.sign_in_with_password({"email": email, "password": password})
@@ -187,20 +233,25 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             st.session_state.verification_waiting = False
                             st.rerun()
                         except Exception as exc:
-                            st.error(_auth_error(exc))
+                            if _is_invalid_credentials(exc):
+                                st.warning("Enter valid credentials.")
+                            else:
+                                st.error(_auth_error(exc))
 
             with signup:
                 if st.button("Create account", use_container_width=True):
                     if not _EMAIL_RE.fullmatch(email):
-                        st.error("Enter a valid email address.")
+                        st.warning("Enter valid credentials.")
+                    elif not password:
+                        st.warning("Enter valid credentials.")
                     elif len(password) < 8:
-                        st.error("Use a password with at least 8 characters.")
+                        st.warning("Enter valid credentials.")
                     else:
                         try:
                             result = client.auth.sign_up({
                                 "email": email,
                                 "password": password,
-                                "options": {"email_redirect_to": frontend_url},
+                                "options": {"email_redirect_to": _auth_redirect_url(frontend_url, "email")},
                             })
                             if result.session:
                                 _save_session(result, cookies)
@@ -210,23 +261,29 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             st.session_state.signup_notice = (
                                 "Signup request accepted. If this address can be registered, Supabase will send a confirmation email."
                             )
+                            # Preserve the signup PKCE verifier for the email-link callback.
+                            cookies.save()
                             st.rerun()
                         except Exception as exc:
-                            st.error(_auth_error(exc))
+                            if _is_invalid_credentials(exc):
+                                st.warning("Enter valid credentials.")
+                            else:
+                                st.error(_auth_error(exc))
 
-            try:
-                _clear_oauth_cookies(cookies)
-                result = client.auth.sign_in_with_oauth({
-                    "provider": "google",
-                    "options": {"redirect_to": _google_redirect_url(frontend_url)},
-                })
-                cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
-                cookies[_OAUTH_PENDING_COOKIE] = "1"
-                cookies.save()
-                st.link_button("Continue with Google", result.url, use_container_width=True)
-            except Exception as exc:
-                _clear_oauth_cookies(cookies)
-                cookies.save()
-                st.error(_auth_error(exc))
+            if not st.session_state.get("verification_waiting", False):
+                try:
+                    _clear_oauth_cookies(cookies)
+                    result = client.auth.sign_in_with_oauth({
+                        "provider": "google",
+                        "options": {"redirect_to": _auth_redirect_url(frontend_url, "google")},
+                    })
+                    cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
+                    cookies[_OAUTH_PENDING_COOKIE] = "1"
+                    cookies.save()
+                    st.link_button("Continue with Google", result.url, use_container_width=True)
+                except Exception as exc:
+                    _clear_oauth_cookies(cookies)
+                    cookies.save()
+                    st.error(_auth_error(exc))
         except Exception as exc:
             st.error(_auth_error(exc))

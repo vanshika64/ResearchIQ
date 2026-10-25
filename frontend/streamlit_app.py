@@ -69,6 +69,7 @@ if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
     st.stop()
 
 if "access_token" not in st.session_state:
+    auth_callback_in_progress = bool(st.query_params.get("code"))
     refresh_token = cookies.get("refresh_token")
     if refresh_token and config.get("supabaseUrl") and config.get("supabaseAnonKey"):
         try:
@@ -93,7 +94,8 @@ if "access_token" not in st.session_state:
                     cookies.save()
                 except KeyError:
                     pass
-                st.info("Your saved sign-in session expired. Sign in again to continue.")
+                if not auth_callback_in_progress:
+                    st.info("Your saved sign-in session expired. Sign in again to continue.")
             else:
                 # Keep the cookie on transient network failures so the user can retry.
                 st.warning("Could not restore your saved session because Supabase could not be reached. Check your connection, then sign in again.")
