@@ -1,5 +1,6 @@
 import re
 import time
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import streamlit as st
 from supabase import ClientOptions, create_client
@@ -54,6 +55,13 @@ def _clear_oauth_cookies(cookies):
             del cookies[key]
             changed = True
     return changed
+
+
+def _google_redirect_url(frontend_url):
+    parts = urlsplit(frontend_url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["auth_flow"] = "google"
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def _save_session(result, cookies):
@@ -125,14 +133,16 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 st.session_state.supabase_auth_storage = storage
 
             code = st.query_params.get("code")
+            auth_flow = st.query_params.get("auth_flow")
             callback_error_query = st.query_params.get("error_description") or st.query_params.get("error")
             if callback_error_query:
                 _clear_oauth_cookies(cookies)
                 cookies.save()
                 st.query_params.clear()
-                st.session_state.auth_callback_error = f"Google sign-in was not completed: {callback_error_query}"
+                prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
+                st.session_state.auth_callback_error = f"{prefix}: {callback_error_query}"
                 st.rerun()
-            if code:
+            if code and auth_flow == "google":
                 if storage.has_oauth_verifier():
                     try:
                         # supabase-py expects an object containing auth_code, not a bare string.
@@ -149,23 +159,26 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         st.session_state.auth_callback_error = f"Could not complete Google sign-in: {_auth_error(exc)}"
                         st.rerun()
                 else:
-                    # Supabase email confirmation returns a code too, but no signup PKCE verifier.
+                    _clear_oauth_cookies(cookies)
+                    cookies.save()
                     st.query_params.clear()
-                    st.session_state.verification_waiting = False
-                    st.session_state.verification_returned = True
+                    st.session_state.auth_callback_error = "Google sign-in expired before it finished. Click Continue with Google and complete the sign-in within 15 minutes."
                     st.rerun()
+            elif code:
+                # Confirmation emails return a code without auth_flow=google.
+                _clear_oauth_cookies(cookies)
+                cookies.save()
+                st.query_params.clear()
+                st.session_state.verification_waiting = False
+                st.session_state.verification_returned = True
+                st.rerun()
 
             signin, signup = st.columns(2)
             with signin:
                 if st.button("Sign in", type="primary", use_container_width=True):
-                    oauth_cookies_changed = _clear_oauth_cookies(cookies)
                     if not _EMAIL_RE.fullmatch(email):
-                        if oauth_cookies_changed:
-                            cookies.save()
                         st.error("Enter a valid email address.")
                     elif not password:
-                        if oauth_cookies_changed:
-                            cookies.save()
                         st.error("Enter your password.")
                     else:
                         try:
@@ -174,8 +187,6 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             st.session_state.verification_waiting = False
                             st.rerun()
                         except Exception as exc:
-                            if oauth_cookies_changed:
-                                cookies.save()
                             st.error(_auth_error(exc))
 
             with signup:
@@ -185,7 +196,6 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                     elif len(password) < 8:
                         st.error("Use a password with at least 8 characters.")
                     else:
-                        oauth_cookies_changed = _clear_oauth_cookies(cookies)
                         try:
                             result = client.auth.sign_up({
                                 "email": email,
@@ -196,32 +206,27 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                 _save_session(result, cookies)
                                 st.session_state.verification_waiting = False
                                 st.rerun()
-                            if oauth_cookies_changed:
-                                cookies.save()
                             st.session_state.verification_waiting = True
                             st.session_state.signup_notice = (
                                 "Signup request accepted. If this address can be registered, Supabase will send a confirmation email."
                             )
                             st.rerun()
                         except Exception as exc:
-                            if oauth_cookies_changed:
-                                cookies.save()
                             st.error(_auth_error(exc))
 
-            if st.button("Continue with Google", use_container_width=True):
-                try:
-                    _clear_oauth_cookies(cookies)
-                    result = client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": frontend_url},
-                    })
-                    cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
-                    cookies[_OAUTH_PENDING_COOKIE] = "1"
-                    cookies.save()
-                    st.link_button("Continue to Google", result.url, use_container_width=True)
-                except Exception as exc:
-                    _clear_oauth_cookies(cookies)
-                    cookies.save()
-                    st.error(_auth_error(exc))
+            try:
+                _clear_oauth_cookies(cookies)
+                result = client.auth.sign_in_with_oauth({
+                    "provider": "google",
+                    "options": {"redirect_to": _google_redirect_url(frontend_url)},
+                })
+                cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
+                cookies[_OAUTH_PENDING_COOKIE] = "1"
+                cookies.save()
+                st.link_button("Continue with Google", result.url, use_container_width=True)
+            except Exception as exc:
+                _clear_oauth_cookies(cookies)
+                cookies.save()
+                st.error(_auth_error(exc))
         except Exception as exc:
             st.error(_auth_error(exc))
