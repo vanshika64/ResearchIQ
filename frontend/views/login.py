@@ -6,6 +6,7 @@ from supabase import ClientOptions, create_client
 
 _OAUTH_COOKIE = "researchiq_oauth_code_verifier"
 _OAUTH_STARTED_COOKIE = "researchiq_oauth_started_at"
+_OAUTH_PENDING_COOKIE = "researchiq_oauth_pending"
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -41,12 +42,16 @@ class _CookieAuthStorage:
             started = float(self.cookies.get(_OAUTH_STARTED_COOKIE) or "0")
         except (TypeError, ValueError):
             started = 0
-        return bool(self.cookies.get(_OAUTH_COOKIE)) and 0 <= time.time() - started < 900
+        return (
+            self.cookies.get(_OAUTH_PENDING_COOKIE) == "1"
+            and bool(self.cookies.get(_OAUTH_COOKIE))
+            and 0 <= time.time() - started < 900
+        )
 
 
 def _clear_oauth_cookies(cookies):
     changed = False
-    for key in (_OAUTH_COOKIE, _OAUTH_STARTED_COOKIE):
+    for key in (_OAUTH_COOKIE, _OAUTH_STARTED_COOKIE, _OAUTH_PENDING_COOKIE):
         if cookies.get(key):
             del cookies[key]
             changed = True
@@ -154,6 +159,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
             signin, signup = st.columns(2)
             with signin:
                 if st.button("Sign in", type="primary", use_container_width=True):
+                    _clear_oauth_cookies(cookies)
                     if not _EMAIL_RE.fullmatch(email):
                         st.error("Enter a valid email address.")
                     elif not password:
@@ -193,16 +199,19 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         except Exception as exc:
                             st.error(_auth_error(exc))
 
-            try:
-                _clear_oauth_cookies(cookies)
-                result = client.auth.sign_in_with_oauth({
-                    "provider": "google",
-                    "options": {"redirect_to": frontend_url},
-                })
-                cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
-                cookies.save()
-                st.link_button("Continue with Google", result.url, use_container_width=True)
-            except Exception as exc:
-                st.error(_auth_error(exc))
+            if st.button("Continue with Google", use_container_width=True):
+                try:
+                    _clear_oauth_cookies(cookies)
+                    result = client.auth.sign_in_with_oauth({
+                        "provider": "google",
+                        "options": {"redirect_to": frontend_url},
+                    })
+                    cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
+                    cookies[_OAUTH_PENDING_COOKIE] = "1"
+                    cookies.save()
+                    st.link_button("Continue to Google", result.url, use_container_width=True)
+                except Exception as exc:
+                    _clear_oauth_cookies(cookies)
+                    st.error(_auth_error(exc))
         except Exception as exc:
             st.error(_auth_error(exc))
