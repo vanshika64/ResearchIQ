@@ -126,8 +126,12 @@ def render(url, anon_key, frontend_url=None, cookies=None):
         if st.session_state.pop("verification_returned", False):
             st.success("Email confirmed. Sign in with your email and password.")
         if st.session_state.get("verification_waiting", False):
-            st.info("Signup was accepted. Check your inbox and spam folder. If no confirmation email arrives, the Supabase project needs a configured SMTP sender; its default sender may not deliver to public email addresses.")
-        signup_notice = st.session_state.pop("signup_notice", None)
+            verification_email = st.session_state.get("verification_email", email)
+            st.info(
+                f"Check {verification_email} for the confirmation link and check your spam folder too. "
+                "If it does not arrive, the Supabase project may need a configured SMTP sender."
+            )
+        signup_notice = st.session_state.get("signup_notice")
         if signup_notice:
             st.success(signup_notice)
         callback_error = st.session_state.pop("auth_callback_error", None)
@@ -176,6 +180,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 cookies.save()
                 st.query_params.clear()
                 st.session_state.verification_waiting = False
+                st.session_state.pop("signup_notice", None)
                 st.session_state.verification_returned = True
                 st.rerun()
             elif code and (
@@ -231,10 +236,14 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             result = client.auth.sign_in_with_password({"email": email, "password": password})
                             _save_session(result, cookies)
                             st.session_state.verification_waiting = False
+                            st.session_state.pop("signup_notice", None)
                             st.rerun()
                         except Exception as exc:
                             if _is_invalid_credentials(exc):
-                                st.warning("We couldn't sign you in with that email and password. Check them and try again.")
+                                st.warning(
+                                    "We couldn't find an account matching those credentials. Check your email and password, "
+                                    "or create an account if you haven't registered yet."
+                                )
                             else:
                                 st.error(_auth_error(exc))
 
@@ -256,13 +265,25 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             if result.session:
                                 _save_session(result, cookies)
                                 st.session_state.verification_waiting = False
+                                st.session_state.pop("signup_notice", None)
                                 st.rerun()
-                            st.session_state.verification_waiting = True
-                            st.session_state.signup_notice = (
-                                "Signup request accepted. If this address can be registered, Supabase will send a confirmation email."
-                            )
-                            # Preserve the signup PKCE verifier for the email-link callback.
-                            cookies.save()
+                            identities = getattr(result.user, "identities", None)
+                            if identities == []:
+                                # Supabase intentionally obfuscates already-registered users.
+                                st.session_state.verification_waiting = False
+                                st.session_state.signup_notice = (
+                                    "No new account was created for this request, so no confirmation email may be sent. "
+                                    "Try signing in, or choose Continue with Google if you registered with Google."
+                                )
+                            else:
+                                st.session_state.verification_waiting = True
+                                st.session_state.verification_email = email
+                                st.session_state.signup_notice = (
+                                    f"Signup submitted. Supabase accepted the request and a confirmation email was requested for {email}. "
+                                    "Check your inbox and spam folder."
+                                )
+                                # Preserve the signup PKCE verifier for the email-link callback.
+                                cookies.save()
                             st.rerun()
                         except Exception as exc:
                             if _is_invalid_credentials(exc):
