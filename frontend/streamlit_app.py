@@ -31,7 +31,7 @@ def get_setting(name, default=""):
 
 cookie_password = get_setting("SESSION_COOKIE_PASSWORD").strip()
 if not cookie_password:
-    st.error("Set SESSION_COOKIE_PASSWORD in the project-root .env to enable sign-in across browser refreshes.")
+    st.error("Add SESSION_COOKIE_PASSWORD to Streamlit Cloud → App settings → Secrets, or set it in the project-root .env for local development.")
     st.stop()
 cookies = EncryptedCookieManager(prefix="researchiq/", password=cookie_password)
 if not cookies.ready():
