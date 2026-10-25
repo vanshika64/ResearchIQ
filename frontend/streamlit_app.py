@@ -38,17 +38,18 @@ cookies = EncryptedCookieManager(prefix="researchiq/", password=cookie_password)
 if not cookies.ready():
     st.stop()
 styles()
-backend = get_setting(
-    "RESEARCHIQ_API_URL",
-    "https://researchiq-2oak.onrender.com",
-)
+backend = (
+    get_setting("RESEARCHIQ_API_URL").strip()
+    or get_setting("BACKEND_URL").strip()
+    or "https://researchiq-2oak.onrender.com"
+).rstrip("/")
 
 config = None
 backend_error = None
 with st.spinner("Connecting to the backend. A free Render service may take up to a minute to wake…"):
     for attempt, timeout in enumerate(((8, 55), (8, 35)), start=1):
         try:
-            response = requests.get(backend.rstrip("/") + "/api/config", timeout=timeout)
+            response = requests.get(backend + "/api/config", timeout=timeout)
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, dict):
@@ -62,7 +63,7 @@ with st.spinner("Connecting to the backend. A free Render service may take up to
 
 if config is None:
     st.error(f"Cannot reach the configured ResearchIQ backend at {backend}. Details: {backend_error}")
-    st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, check that RESEARCHIQ_API_URL in Streamlit Cloud Secrets is the exact Render service URL and that the Render deployment is live.")
+    st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, set RESEARCHIQ_API_URL (recommended) or BACKEND_URL in Streamlit Cloud Secrets to the exact live Render service URL, then check the Render logs.")
     st.stop()
 if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
     st.error("The backend is reachable, but it did not provide Supabase configuration. Set SUPABASE_URL and SUPABASE_ANON_KEY in the Render backend environment, then redeploy.")

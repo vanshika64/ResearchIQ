@@ -6,7 +6,16 @@ ResearchIQ is a split frontend/backend medical-literature assistant. Streamlit p
 
 The backend reads the project-root `.env` file regardless of its working directory. This also avoids falling back to placeholder Supabase settings when the server is started inside `backend/`. Keep real credentials in that file and never commit it. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER=groq`, and `EMBEDDINGS_PROVIDER=huggingface`. The service role key stays server-side and is not needed for the current login flow.
 
-Enable Email and Google under Supabase **Authentication → Providers**. For local development, set `FRONTEND_URL=http://localhost:8501`; on Render, set `FRONTEND_URL=https://research-iq1.streamlit.app`. Add both frontend URLs to Supabase **Authentication → URL Configuration → Redirect URLs**. The app sends the configured URL as the email confirmation and Google sign-in redirect. Set `CORS_ORIGINS` to the frontend origins you use, including `https://research-iq1.streamlit.app` for the deployed app.
+Enable Email and Google under Supabase **Authentication → Providers**. Set the backend's `FRONTEND_URL` to the frontend origin: `http://localhost:8501` for local development, and `https://research-iq1.streamlit.app` on Render. In Supabase **Authentication → URL Configuration → Redirect URLs**, add these exact callback URLs (the `auth_flow` query parameter must be preserved):
+
+- `https://research-iq1.streamlit.app?auth_flow=google`
+- `https://research-iq1.streamlit.app?auth_flow=email`
+- `http://localhost:8501?auth_flow=google`
+- `http://localhost:8501?auth_flow=email`
+
+If you open the local frontend as `http://127.0.0.1:8501`, also allow the matching `127.0.0.1` URLs with both `auth_flow=google` and `auth_flow=email`. Google Cloud's **Authorized JavaScript origins** should contain the frontend origins (the production Streamlit origin and, for local development, `http://localhost:8501`). Its **Authorized redirect URI** is Supabase's callback, `https://<your-project-ref>.supabase.co/auth/v1/callback`; the app's `auth_flow` URLs belong in Supabase's redirect allowlist, not Google's JavaScript origins. Set `CORS_ORIGINS` to the frontend origins you use, including `https://research-iq1.streamlit.app` for the deployed app.
+
+For Streamlit Cloud Secrets, set `RESEARCHIQ_API_URL = "https://researchiq-2oak.onrender.com"`. `BACKEND_URL` is also accepted as an alias. The backend URL must be the live Render service origin, with no `/api` path appended.
 
 Set a long, random `SESSION_COOKIE_PASSWORD` in the project-root `.env`; the frontend uses it to encrypt the Supabase refresh token so it can restore a login after a browser refresh. Keep this value stable across app restarts and private to the server.
 

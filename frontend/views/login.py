@@ -221,8 +221,8 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 st.session_state.auth_callback_error = (
                     "The sign-in callback did not include its flow type, so the app could not safely finish authentication. "
                     "Add these exact URLs under Supabase Auth → URL Configuration → Redirect URLs: "
-                    "https://research-iq1.streamlit.app?auth_flow=google and "
-                    "https://research-iq1.streamlit.app?auth_flow=email, then retry."
+                    f"{_auth_redirect_url(frontend_url, 'google')} and "
+                    f"{_auth_redirect_url(frontend_url, 'email')}, then retry."
                 )
                 st.rerun()
 
