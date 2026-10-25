@@ -14,6 +14,7 @@ from utils.logger import get_logger
 from services.generation import generate
 from services.ingestion import extract_pages, make_chunks, embed_chunks
 from services.retrieval import retrieve
+from services.domain_scope import is_medical_research_paper, is_medical_research_query
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -43,15 +44,23 @@ async def upload_paper(file: UploadFile = File(...), user=Depends(current_user),
         raise HTTPException(413, "PDF must be smaller than 30 MB.")
     try:
         pages = extract_pages(data)
+        full_text = "\n\n".join(text for _, text in pages)
+        title = re.sub(r"\.pdf$", "", filename, flags=re.I)
+        if not is_medical_research_paper(title, full_text):
+            raise HTTPException(
+                422,
+                "This workspace accepts medical, biomedical, disease, and healthcare research papers only. "
+                "The PDF must contain medical subject matter and research content such as methods, results, or an abstract.",
+            )
         chunks = make_chunks(pages)
         indexed = embed_chunks(chunks)
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except Exception as exc:
         logger.exception("Embedding setup failed while indexing uploaded paper")
         raise HTTPException(503, f"Embedding setup failed: {exc}") from exc
-    full_text = "\n\n".join(text for _, text in pages)
-    title = re.sub(r"\.pdf$", "", filename, flags=re.I)
     paper = Paper(owner_id=user, title=title, filename=filename, text=full_text)
     db.add(paper)
     db.flush()
@@ -83,6 +92,13 @@ def selected_papers(payload: ResearchRequest, owner: str, db: Session):
         raise HTTPException(404, "One or more selected papers were not found in your library.")
     if not papers:
         raise HTTPException(400, "Upload and select at least one paper first.")
+    nonmedical = [paper.title for paper in papers if not is_medical_research_paper(paper.title, paper.text or "")]
+    if nonmedical:
+        raise HTTPException(
+            422,
+            "This workspace analyzes medical and biomedical research only. Remove or replace out-of-scope paper(s): "
+            + ", ".join(nonmedical[:3]),
+        )
     return papers
 
 def source_metadata(rows, papers):
@@ -95,6 +111,12 @@ def research(payload: ResearchRequest, user=Depends(current_user), db: Session =
     question = payload.query.strip()
     if not question:
         raise HTTPException(422, "Enter a research question or focus.")
+    if not is_medical_research_query(question):
+        raise HTTPException(
+            422,
+            "ResearchIQ supports medical, biomedical, disease, and healthcare research questions only. "
+            "Ask about a health topic or an aspect of your selected research paper.",
+        )
     papers = selected_papers(payload, user, db)
     try:
         rows = retrieve(db, user, question, [paper.id for paper in papers])
@@ -118,17 +140,26 @@ def research(payload: ResearchRequest, user=Depends(current_user), db: Session =
 
 @router.post("/search")
 def semantic_search(payload: ResearchRequest, user=Depends(current_user), db: Session = Depends(get_db)):
+    query = payload.query.strip()
+    if not query:
+        raise HTTPException(422, "Enter a medical research topic to search for.")
+    if not is_medical_research_query(query):
+        raise HTTPException(
+            422,
+            "ResearchIQ searches medical, biomedical, disease, and healthcare research only. "
+            "Enter a health topic or a concept from your selected paper.",
+        )
     papers = selected_papers(payload, user, db)
     try:
-        sources = source_metadata(retrieve(db, user, payload.query.strip(), [paper.id for paper in papers]), papers)
+        sources = source_metadata(retrieve(db, user, query, [paper.id for paper in papers]), papers)
     except Exception as exc:
         raise HTTPException(503, f"Hugging Face semantic search failed: {exc}") from exc
-    item = Interaction(owner_id=user, kind="search", query=payload.query,
+    item = Interaction(owner_id=user, kind="search", query=query,
                        answer=f"Semantic search found {len(sources)} relevant passages.", sources=sources)
     db.add(item)
     db.commit()
     db.refresh(item)
-    return {"id": item.id, "kind": item.kind, "query": payload.query, "answer": item.answer,
+    return {"id": item.id, "kind": item.kind, "query": query, "answer": item.answer,
             "sources": sources, "created_at": item.created_at}
 
 @router.get("/history")

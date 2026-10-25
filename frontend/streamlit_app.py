@@ -165,7 +165,7 @@ with research_tab:
             st.download_button("⇩ Export structured report", report, file_name="researchiq-report.md", mime="text/markdown")
     with right:
         st.subheader("Your paper library")
-        st.caption("PDF text extraction · Private to your account")
+        st.caption("Medical, disease, biomedical, and healthcare research PDFs only · Private to your account")
         uploaded = st.file_uploader("Upload research PDFs", type=["pdf"], accept_multiple_files=True)
         if uploaded:
             for pdf in uploaded:
