@@ -234,7 +234,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             st.rerun()
                         except Exception as exc:
                             if _is_invalid_credentials(exc):
-                                st.warning("Enter valid credentials.")
+                                st.warning("We couldn't sign you in with that email and password. Check them and try again.")
                             else:
                                 st.error(_auth_error(exc))
 
