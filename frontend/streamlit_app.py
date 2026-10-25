@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import time
 import streamlit as st
 import requests
 from dotenv import load_dotenv
@@ -41,11 +42,31 @@ backend = get_setting(
     "RESEARCHIQ_API_URL",
     "https://researchiq-2oak.onrender.com",
 )
-try:
-    config = requests.get(backend.rstrip("/") + "/api/config", timeout=8).json()
-except Exception:
-    config = {}
-    st.error("Cannot reach the ResearchIQ backend. Start FastAPI at https://researchiq-2oak.onrender.com.")
+
+config = None
+backend_error = None
+with st.spinner("Connecting to the backend. A free Render service may take up to a minute to wake…"):
+    for attempt, timeout in enumerate(((8, 55), (8, 35)), start=1):
+        try:
+            response = requests.get(backend.rstrip("/") + "/api/config", timeout=timeout)
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("The backend returned an invalid configuration response.")
+            config = payload
+            break
+        except (requests.RequestException, ValueError) as exc:
+            backend_error = exc
+            if attempt < 2:
+                time.sleep(2)
+
+if config is None:
+    st.error(f"Cannot reach the configured ResearchIQ backend at {backend}. Details: {backend_error}")
+    st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, check that RESEARCHIQ_API_URL in Streamlit Cloud Secrets is the exact Render service URL and that the Render deployment is live.")
+    st.stop()
+if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
+    st.error("The backend is reachable, but it did not provide Supabase configuration. Set SUPABASE_URL and SUPABASE_ANON_KEY in the Render backend environment, then redeploy.")
+    st.stop()
 
 if "access_token" not in st.session_state:
     refresh_token = cookies.get("refresh_token")
