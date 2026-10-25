@@ -249,6 +249,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
 
             with signup:
                 if st.button("Create account", use_container_width=True):
+                    st.session_state.pop("signup_notice", None)
                     if not _EMAIL_RE.fullmatch(email):
                         st.warning("Enter valid credentials.")
                     elif not password:
@@ -275,16 +276,17 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                     "No new account was created for this request, so no confirmation email may be sent. "
                                     "Try signing in, or choose Continue with Google if you registered with Google."
                                 )
+                                st.warning(st.session_state.signup_notice)
                             else:
                                 st.session_state.verification_waiting = True
                                 st.session_state.verification_email = email
                                 st.session_state.signup_notice = (
-                                    f"Signup submitted. Supabase accepted the request and a confirmation email was requested for {email}. "
-                                    "Check your inbox and spam folder."
+                                    f"Account created. Check {email} for a confirmation email, then follow its verification link before signing in."
                                 )
+                                st.success(st.session_state.signup_notice)
+                                st.info("Check your inbox and spam folder. You can return here after verifying your email.")
                                 # Preserve the signup PKCE verifier for the email-link callback.
                                 cookies.save()
-                            st.rerun()
                         except Exception as exc:
                             if _is_invalid_credentials(exc):
                                 st.warning("Enter valid credentials.")
