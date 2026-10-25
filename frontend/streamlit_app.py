@@ -39,13 +39,13 @@ if not cookies.ready():
 styles()
 backend = get_setting(
     "RESEARCHIQ_API_URL",
-    "https://researchiq-backend-qj23.onrender.com",
+    "https://researchiq-2oak.onrender.com",
 )
 try:
     config = requests.get(backend.rstrip("/") + "/api/config", timeout=8).json()
 except Exception:
     config = {}
-    st.error("Cannot reach the ResearchIQ backend. Start FastAPI at http://localhost:8000.")
+    st.error("Cannot reach the ResearchIQ backend. Start FastAPI at https://researchiq-2oak.onrender.com.")
 
 if "access_token" not in st.session_state:
     refresh_token = cookies.get("refresh_token")
