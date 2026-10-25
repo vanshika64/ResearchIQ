@@ -83,10 +83,20 @@ if "access_token" not in st.session_state:
             else:
                 del cookies["refresh_token"]
                 cookies.save()
-        except Exception:
-            # Keep the cookie on transient network failures; the user can retry
-            # restoration later or sign in to replace a revoked refresh token.
-            st.warning("Could not restore your saved session. Please sign in, then try refreshing again.")
+        except Exception as exc:
+            message = str(exc).lower()
+            if "refresh token" in message and any(
+                marker in message for marker in ("invalid", "expired", "not found", "already used")
+            ):
+                try:
+                    del cookies["refresh_token"]
+                    cookies.save()
+                except KeyError:
+                    pass
+                st.info("Your saved sign-in session expired. Sign in again to continue.")
+            else:
+                # Keep the cookie on transient network failures so the user can retry.
+                st.warning("Could not restore your saved session because Supabase could not be reached. Check your connection, then sign in again.")
     if "access_token" in st.session_state:
         st.rerun()
     st.markdown('<div class="eyebrow">YOUR RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
