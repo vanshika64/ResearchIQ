@@ -112,11 +112,15 @@ def render(url, anon_key, frontend_url=None, cookies=None):
     frontend_url = (frontend_url or st.session_state.get("frontend_url", "http://localhost:8501")).strip().rstrip("/")
     left, right = st.columns([1.2, 1])
     with left:
-        st.markdown("# Read less.\n# Understand more.")
-        st.markdown("Your medical literature workspace. Ask questions across papers, trace every answer to evidence, and turn dense research into clear next steps.")
-        st.info("Evidence-led discovery · Private research library · Cited responses")
+        st.markdown(
+            '<section class="auth-hero"><div class="eyebrow">MEDICAL RESEARCH WORKSPACE</div>'
+            '<h1>Your next research breakthrough starts here.</h1>'
+            '<p>Explore medical literature, uncover evidence, and connect research findings with confidence.</p>'
+            '<div class="auth-promise">Evidence-led discovery · Private paper library · Cited responses</div></section>',
+            unsafe_allow_html=True,
+        )
     with right:
-        st.markdown("### Sign in to ResearchIQ")
+        st.markdown("### Sign in to MedLitIQ")
         if not url or not anon_key or "placeholder" in url.lower() or "placeholder" in anon_key.lower():
             st.error("Set SUPABASE_URL and SUPABASE_ANON_KEY in the backend environment, then restart the backend.")
             return

@@ -1,41 +1,80 @@
 import streamlit as st
 from pathlib import Path
 
+THEMES = {
+    "Light": {
+        "app_bg": "#F8FAFC", "sidebar": "#FFFFFF", "card": "#FFFFFF",
+        "text": "#172033", "muted": "#64748B", "accent": "#6D5AE6",
+        "accent_hover": "#5945D0", "soft": "#F0EDFF", "border": "#E2E8F0",
+        "input": "#FFFFFF", "shadow": "0 8px 24px rgba(23,32,51,.055)", "scheme": "light",
+    },
+    "Dark": {
+        "app_bg": "#0B0D12", "sidebar": "#11141C", "card": "#171B26",
+        "text": "#F1F5F9", "muted": "#9CA3B4", "accent": "#A78BFA",
+        "accent_hover": "#C4B5FD", "soft": "#29213F", "border": "#292E3B",
+        "input": "#11141C", "shadow": "0 10px 30px rgba(0,0,0,.20)", "scheme": "dark",
+    },
+}
+
+
+def initialize_theme():
+    """Initialize only the dedicated UI theme state; leave app state untouched."""
+    if "medlitiq_theme" not in st.session_state:
+        st.session_state["medlitiq_theme"] = "Light"
+    if st.session_state["medlitiq_theme"] not in THEMES:
+        st.session_state["medlitiq_theme"] = "Light"
+
+
 def styles():
+    initialize_theme()
+    theme = THEMES[st.session_state["medlitiq_theme"]]
+    variables = ";".join(f"--{name.replace('_', '-')}: {value}" for name, value in theme.items())
     asset_css = (Path(__file__).resolve().parents[1] / "assets" / "theme.css").read_text(encoding="utf-8")
-    st.markdown("""
-    <style>
-    .block-container{max-width:1440px;padding-top:2rem;padding-bottom:4rem}
-    [data-testid="stSidebar"]{background:#f0f5f1;border-right:1px solid #e2e9e4}
-    h1,h2,h3{letter-spacing:-.035em}
-    .hero{background:linear-gradient(120deg,#183d32,#23684f);color:white;padding:26px 30px;border-radius:18px;margin:10px 0 22px}
-    .hero h2{color:white;margin:0 0 8px}.hero p{color:#c5ddd1;margin:0}
-    .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:#17785f;font-weight:700}
-    .source{background:#f5f9f5;border:1px solid #e3ebe4;padding:12px 14px;border-radius:10px;margin:8px 0}
-    .muted{color:#718079;font-size:13px}
-    </style>""" + f"<style>{asset_css}</style>", unsafe_allow_html=True)
+    st.markdown(
+        "<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');"
+        f":root{{{variables}}}{asset_css}</style>",
+        unsafe_allow_html=True,
+    )
 
 def sidebar(email, cookies=None):
     with st.sidebar:
-        st.markdown("## ✳ ResearchIQ")
-        st.caption("MEDICAL LITERATURE WORKSPACE")
+        st.markdown(
+            '<div class="brand-lockup"><span class="brand-mark">M</span>'
+            '<span class="brand-name">MedLitIQ</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Medical literature. Clearer insights.")
         st.divider()
-        st.markdown(f"**{email or 'Researcher'}**")
-        if st.button("Sign out", use_container_width=True):
-            client = st.session_state.get("supabase_client")
-            if client:
-                try:
-                    client.auth.sign_out()
-                except Exception:
-                    pass
-            if cookies is not None:
-                try:
-                    del cookies["refresh_token"]
-                    cookies.save()
-                except KeyError:
-                    pass
-            for key in ("access_token", "user_email", "supabase_client"):
-                st.session_state.pop(key, None)
-            st.rerun()
+        st.markdown("**Appearance**")
+        st.segmented_control(
+            "Appearance",
+            options=["Light", "Dark"],
+            format_func=lambda value: "☀️ Light mode" if value == "Light" else "🌙 Dark mode",
+            key="medlitiq_theme",
+            label_visibility="collapsed",
+            width="stretch",
+        )
+        st.divider()
+        if email:
+            st.markdown('<div class="sidebar-section-label">SIGNED IN AS</div>', unsafe_allow_html=True)
+            st.markdown(f"**{email}**")
+            if st.button("Sign out", use_container_width=True, key="medlitiq_sign_out"):
+                client = st.session_state.get("supabase_client")
+                if client:
+                    try:
+                        client.auth.sign_out()
+                    except Exception:
+                        pass
+                if cookies is not None:
+                    try:
+                        del cookies["refresh_token"]
+                        cookies.save()
+                    except KeyError:
+                        pass
+                for key in ("access_token", "user_email", "supabase_client"):
+                    st.session_state.pop(key, None)
+                st.rerun()
+        else:
+            st.markdown('<div class="sidebar-note">Your private workspace for medical research papers, evidence, and citations.</div>', unsafe_allow_html=True)
         st.divider()
         st.caption("Answers use evidence retrieved from your uploaded papers.")
