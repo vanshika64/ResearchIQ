@@ -9,9 +9,12 @@
   padding-top: 2rem;
   padding-bottom: 4rem;
 }
-html, body, [class*="st-"], [data-testid="stMarkdownContainer"] {
+html, body, [data-testid="stMarkdownContainer"] {
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
+}
+input, textarea, button, select {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 h1, h2, h3, h4, [data-testid="stHeading"] {
   font-family: Manrope, Inter, sans-serif !important;

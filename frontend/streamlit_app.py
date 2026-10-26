@@ -105,7 +105,6 @@ if "access_token" not in st.session_state:
                 st.warning("Could not restore your saved session because Supabase could not be reached. Check your connection, then sign in again.")
     if "access_token" in st.session_state:
         st.rerun()
-    st.markdown('<div class="eyebrow">YOUR RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
     st.session_state.frontend_url = config.get("frontendUrl", "http://localhost:8501")
     render_login(config.get("supabaseUrl"), config.get("supabaseAnonKey"), cookies=cookies)
     st.stop()
