@@ -127,13 +127,19 @@ def render(url, anon_key, frontend_url=None, cookies=None):
             st.success("Email confirmed. Sign in with your email and password.")
         if st.session_state.get("verification_waiting", False):
             verification_email = st.session_state.get("verification_email", email)
-            st.info(
-                f"Check {verification_email} for the confirmation link and check your spam folder too. "
-                "If it does not arrive, the Supabase project may need a configured SMTP sender."
+            st.warning(
+                f"Confirm your email to activate your account. Open the confirmation link sent to {verification_email}, "
+                "then return here and sign in. Check your spam folder if you cannot find the message."
             )
         signup_notice = st.session_state.get("signup_notice")
         if signup_notice:
-            st.success(signup_notice)
+            notice_type = st.session_state.get("signup_notice_type", "success")
+            if notice_type == "warning":
+                st.warning(signup_notice)
+            elif notice_type == "info":
+                st.info(signup_notice)
+            else:
+                st.success(signup_notice)
         callback_error = st.session_state.pop("auth_callback_error", None)
         if callback_error:
             st.error(callback_error)
@@ -181,6 +187,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 st.query_params.clear()
                 st.session_state.verification_waiting = False
                 st.session_state.pop("signup_notice", None)
+                st.session_state.pop("signup_notice_type", None)
                 st.session_state.verification_returned = True
                 st.rerun()
             elif code and (
@@ -237,19 +244,32 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                             _save_session(result, cookies)
                             st.session_state.verification_waiting = False
                             st.session_state.pop("signup_notice", None)
+                            st.session_state.pop("signup_notice_type", None)
                             st.rerun()
                         except Exception as exc:
                             if _is_invalid_credentials(exc):
-                                st.warning(
-                                    "We couldn't find an account matching those credentials. Check your email and password, "
-                                    "or create an account if you haven't registered yet."
-                                )
+                                pending_email = str(st.session_state.get("verification_email", "")).strip().casefold()
+                                if (
+                                    st.session_state.get("verification_waiting", False)
+                                    and pending_email
+                                    and pending_email == email.casefold()
+                                ):
+                                    st.warning(
+                                        "This account still needs email confirmation. Open the confirmation link sent to "
+                                        f"{email}, then sign in. If you already confirmed it, check your password and try again."
+                                    )
+                                else:
+                                    st.warning(
+                                        "We couldn't sign you in with those credentials. Check your email and password, "
+                                        "and confirm your email if you just created this account."
+                                    )
                             else:
                                 st.error(_auth_error(exc))
 
             with signup:
                 if st.button("Create account", use_container_width=True):
                     st.session_state.pop("signup_notice", None)
+                    st.session_state.pop("signup_notice_type", None)
                     if not _EMAIL_RE.fullmatch(email):
                         st.warning("Enter valid credentials.")
                     elif not password:
@@ -267,6 +287,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                 _save_session(result, cookies)
                                 st.session_state.verification_waiting = False
                                 st.session_state.pop("signup_notice", None)
+                                st.session_state.pop("signup_notice_type", None)
                                 st.rerun()
                             identities = getattr(result.user, "identities", None)
                             if identities == []:
@@ -276,15 +297,18 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                     "No new account was created for this request, so no confirmation email may be sent. "
                                     "Try signing in, or choose Continue with Google if you registered with Google."
                                 )
+                                st.session_state.signup_notice_type = "warning"
                                 st.warning(st.session_state.signup_notice)
                             else:
                                 st.session_state.verification_waiting = True
                                 st.session_state.verification_email = email
                                 st.session_state.signup_notice = (
-                                    f"Account created. Check {email} for a confirmation email, then follow its verification link before signing in."
+                                    f"Account created. Confirm your email to activate it: open the verification link sent to {email}, "
+                                    "then return here and sign in."
                                 )
-                                st.success(st.session_state.signup_notice)
-                                st.info("Check your inbox and spam folder. You can return here after verifying your email.")
+                                st.session_state.signup_notice_type = "info"
+                                st.info(st.session_state.signup_notice)
+                                st.info("Check your inbox and spam folder. You must confirm your email before password sign-in can work.")
                                 # Preserve the signup PKCE verifier for the email-link callback.
                                 cookies.save()
                         except Exception as exc:
