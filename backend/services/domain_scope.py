@@ -50,6 +50,14 @@ _CLEARLY_UNRELATED_TERMS = re.compile(
     re.IGNORECASE,
 )
 
+_RESEARCH_GAP_REQUEST = re.compile(
+    r"\b(?:research\s+gaps?|gap\s+analysis|gaps?\s+in\s+(?:the\s+)?(?:literature|research|"
+    r"(?:this|these|the)\s+(?:paper|study|papers|studies))|"
+    r"(?:find|identify|suggest|infer|what\s+are)\s+(?:the\s+)?(?:possible\s+)?research\s+gaps?|"
+    r"unexplored\s+(?:research\s+)?(?:areas?|topics?|questions?)|understudied|under-researched)\b",
+    re.IGNORECASE,
+)
+
 
 def is_medical_research_paper(title: str, text: str) -> bool:
     """Require both biomedical subject matter and recognizable research content."""
@@ -64,3 +72,8 @@ def is_medical_research_query(query: str) -> bool:
     if _CLEARLY_UNRELATED_TERMS.search(query):
         return False
     return bool(_PAPER_ANALYSIS_TERMS.search(query))
+
+
+def is_research_gap_request(query: str) -> bool:
+    """Identify requests for the removed research-gap analysis feature."""
+    return bool(_RESEARCH_GAP_REQUEST.search(query))

@@ -14,7 +14,7 @@ from utils.logger import get_logger
 from services.generation import generate
 from services.ingestion import extract_pages, make_chunks, embed_chunks
 from services.retrieval import retrieve
-from services.domain_scope import is_medical_research_paper, is_medical_research_query
+from services.domain_scope import is_medical_research_paper, is_medical_research_query, is_research_gap_request
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -111,6 +111,11 @@ def research(payload: ResearchRequest, user=Depends(current_user), db: Session =
     question = payload.query.strip()
     if not question:
         raise HTTPException(422, "Enter a research question or focus.")
+    if is_research_gap_request(question):
+        raise HTTPException(
+            422,
+            "Research-gap analysis is unavailable. You can ask for limitations explicitly reported in the selected papers.",
+        )
     if not is_medical_research_query(question):
         raise HTTPException(
             422,

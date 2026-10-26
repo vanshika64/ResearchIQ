@@ -50,6 +50,6 @@ cd frontend
 streamlit run streamlit_app.py
 ```
 
-Open <http://localhost:8501>. The app supports account creation/sign-in, Google OAuth, private paper libraries, semantic search, cited questions, structured summaries, comparisons, cautious research-gap suggestions, Markdown reports, and interaction history.
+Open <http://localhost:8501>. The app supports account creation/sign-in, Google OAuth, private paper libraries, semantic search, cited questions, structured summaries, comparisons, Markdown reports, and interaction history. Research-gap analysis is not available; users can ask for limitations explicitly reported in the selected papers.
 
 PDFs must contain selectable text and be under 30 MB. Scanned image PDFs need OCR and are rejected with an explanation. Retrieved excerpts include paper title, filename, and page. Configure Postgres, HTTPS, backups, and private object storage before deployment.

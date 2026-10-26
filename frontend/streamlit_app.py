@@ -125,7 +125,7 @@ with research_tab:
     left, right = st.columns([1.65, 1], gap="large")
     with left:
         st.subheader("Ask your library")
-        modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Find gaps": "gaps", "Research report": "report"}
+        modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Research report": "report"}
         mode_label = st.radio("Choose a research task", list(modes), horizontal=True, label_visibility="collapsed")
         selected = st.multiselect("Select papers", options=papers, format_func=lambda p: p["title"],
                                   default=papers if len(papers) < 3 else [], key="selected_papers")
@@ -134,7 +134,6 @@ with research_tab:
             "Ask": "What would you like to know about these studies?",
             "Summarize": "Summarize the objective, methods, findings, and limitations.",
             "Compare": "Compare these studies across methods, findings, and limitations.",
-            "Find gaps": "What possible research gaps are suggested by these papers?",
             "Research report": "Generate a structured report about these papers.",
         }
         query = st.text_area("Question or focus", placeholder=prompts[mode_label], height=115)
