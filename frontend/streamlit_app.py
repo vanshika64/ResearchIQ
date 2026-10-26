@@ -70,8 +70,6 @@ if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
     st.error("The backend is reachable, but it did not provide Supabase configuration. Set SUPABASE_URL and SUPABASE_ANON_KEY in the Render backend environment, then redeploy.")
     st.stop()
 
-sidebar(st.session_state.get("user_email"), cookies=cookies)
-
 if "access_token" not in st.session_state:
     auth_callback_in_progress = bool(st.query_params.get("code"))
     refresh_token = cookies.get("refresh_token")
@@ -105,11 +103,20 @@ if "access_token" not in st.session_state:
                 st.warning("Could not restore your saved session because Supabase could not be reached. Check your connection, then sign in again.")
     if "access_token" in st.session_state:
         st.rerun()
+    sidebar(None, cookies=cookies)
     st.session_state.frontend_url = config.get("frontendUrl", "http://localhost:8501")
     render_login(config.get("supabaseUrl"), config.get("supabaseAnonKey"), cookies=cookies)
     st.stop()
 
 token = st.session_state.access_token
+modes = {
+    "Search": "search",
+    "Ask": "question",
+    "Summarize": "summary",
+    "Compare": "comparison",
+    "Report": "report",
+}
+mode_label = sidebar(st.session_state.get("user_email"), cookies=cookies, research_modes=modes)
 st.markdown(
     '<section class="workspace-hero"><div class="eyebrow">YOUR MEDICAL RESEARCH WORKSPACE</div>'
     '<h1>Your next research breakthrough starts here.</h1>'
@@ -129,8 +136,6 @@ with research_tab:
     left, right = st.columns([1.55, 1], gap="large")
     with left:
         st.subheader("Ask your library")
-        modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Research report": "report"}
-        mode_label = st.radio("Choose a research task", list(modes), horizontal=True, label_visibility="collapsed")
         selected = st.multiselect("Select papers", options=papers, format_func=lambda p: p["title"],
                                   default=papers if len(papers) < 3 else [], key="selected_papers")
         prompts = {
@@ -138,7 +143,7 @@ with research_tab:
             "Ask": "What would you like to know about these studies?",
             "Summarize": "Summarize the objective, methods, findings, and limitations.",
             "Compare": "Compare these studies across methods, findings, and limitations.",
-            "Research report": "Generate a structured report about these papers.",
+            "Report": "Generate a structured report about these papers.",
         }
         query = st.text_area("Question or focus", placeholder=prompts[mode_label], height=115)
         if st.button("Find evidence  ↗", type="primary", use_container_width=True, disabled=not selected):

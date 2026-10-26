@@ -36,7 +36,20 @@ def styles():
         unsafe_allow_html=True,
     )
 
-def sidebar(email, cookies=None):
+def _theme_control():
+    st.markdown("**Appearance**")
+    st.segmented_control(
+        "Appearance",
+        options=["Light", "Dark"],
+        format_func=lambda value: "☀️ Light mode" if value == "Light" else "🌙 Dark mode",
+        key="medlitiq_theme",
+        label_visibility="collapsed",
+        width="stretch",
+    )
+
+
+def sidebar(email, cookies=None, research_modes=None):
+    mode_label = None
     with st.sidebar:
         st.markdown(
             '<div class="brand-lockup"><span class="brand-mark">M</span>'
@@ -45,15 +58,14 @@ def sidebar(email, cookies=None):
         )
         st.caption("Medical literature. Clearer insights.")
         st.divider()
-        st.markdown("**Appearance**")
-        st.segmented_control(
-            "Appearance",
-            options=["Light", "Dark"],
-            format_func=lambda value: "☀️ Light mode" if value == "Light" else "🌙 Dark mode",
-            key="medlitiq_theme",
-            label_visibility="collapsed",
-            width="stretch",
-        )
+        if email and research_modes:
+            mode_label = st.radio(
+                "Research tools",
+                options=list(research_modes),
+                key="medlitiq_research_mode",
+            )
+        else:
+            _theme_control()
         st.divider()
         if email:
             st.markdown('<div class="sidebar-section-label">SIGNED IN AS</div>', unsafe_allow_html=True)
@@ -76,5 +88,9 @@ def sidebar(email, cookies=None):
                 st.rerun()
         else:
             st.markdown('<div class="sidebar-note">Your private workspace for medical research papers, evidence, and citations.</div>', unsafe_allow_html=True)
+        if email and research_modes:
+            st.divider()
+            _theme_control()
         st.divider()
         st.caption("Answers use evidence retrieved from your uploaded papers.")
+    return mode_label
