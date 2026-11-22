@@ -25,7 +25,8 @@ def sidebar(email, cookies=None):
             client = st.session_state.get("supabase_client")
             if client:
                 try:
-                    client.auth.sign_out()
+                    with st.spinner("Signing you out securely…"):
+                        client.auth.sign_out()
                 except Exception:
                     pass
             if cookies is not None:

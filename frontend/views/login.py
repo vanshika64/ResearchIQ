@@ -252,8 +252,9 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         st.warning("Enter valid credentials.")
                     else:
                         try:
-                            result = client.auth.sign_in_with_password({"email": email, "password": password})
-                            _save_session(result, cookies)
+                            with st.spinner("Checking your email and password…"):
+                                result = client.auth.sign_in_with_password({"email": email, "password": password})
+                                _save_session(result, cookies)
                             st.session_state.verification_waiting = False
                             st.session_state.pop("signup_notice", None)
                             st.session_state.pop("signup_notice_type", None)
@@ -290,11 +291,12 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         st.warning("Enter valid credentials.")
                     else:
                         try:
-                            result = client.auth.sign_up({
-                                "email": email,
-                                "password": password,
-                                "options": {"email_redirect_to": _auth_redirect_url(frontend_url, "email")},
-                            })
+                            with st.spinner("Creating your account and preparing the confirmation email…"):
+                                result = client.auth.sign_up({
+                                    "email": email,
+                                    "password": password,
+                                    "options": {"email_redirect_to": _auth_redirect_url(frontend_url, "email")},
+                                })
                             if result.session:
                                 _save_session(result, cookies)
                                 st.session_state.verification_waiting = False
@@ -306,8 +308,8 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                 # Supabase intentionally obfuscates already-registered users.
                                 st.session_state.verification_waiting = False
                                 st.session_state.signup_notice = (
-                                    "No new account was created for this request, so no confirmation email may be sent. "
-                                    "Try signing in, or choose Continue with Google if you registered with Google."
+                                    f"An account may already exist for {email}. If you have not confirmed it yet, check your inbox and spam folder for the original verification link. "
+                                    "Supabase may not send another confirmation for an existing account. If you already confirmed it, sign in; use Google if you registered with Google."
                                 )
                                 st.session_state.signup_notice_type = "warning"
                                 st.warning(st.session_state.signup_notice)
@@ -319,6 +321,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                                     "then return here and sign in."
                                 )
                                 st.session_state.signup_notice_type = "info"
+                                st.success("Account created. Email confirmation is required before you can sign in.")
                                 st.info(st.session_state.signup_notice)
                                 st.info("Check your inbox and spam folder. You must confirm your email before password sign-in can work.")
                                 # Preserve the signup PKCE verifier for the email-link callback.
@@ -339,7 +342,13 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                     cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
                     cookies[_OAUTH_PENDING_COOKIE] = "1"
                     cookies.save()
-                    st.link_button("Continue with Google", result.url, use_container_width=True)
+                    st.caption("Google will securely authenticate you, then return you to ResearchIQ.")
+                    st.link_button(
+                        "![Google](https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg) Continue with Google",
+                        result.url,
+                        use_container_width=True,
+                        key="google_sign_in_link",
+                    )
                 except Exception as exc:
                     _clear_oauth_cookies(cookies)
                     cookies.save()

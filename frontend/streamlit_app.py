@@ -74,8 +74,9 @@ if "access_token" not in st.session_state:
     refresh_token = cookies.get("refresh_token")
     if refresh_token and config.get("supabaseUrl") and config.get("supabaseAnonKey"):
         try:
-            auth_client = create_client(config["supabaseUrl"], config["supabaseAnonKey"])
-            refreshed = auth_client.auth.refresh_session(refresh_token)
+            with st.spinner("Restoring your saved sign-in session…"):
+                auth_client = create_client(config["supabaseUrl"], config["supabaseAnonKey"])
+                refreshed = auth_client.auth.refresh_session(refresh_token)
             if refreshed.session:
                 st.session_state.access_token = refreshed.session.access_token
                 st.session_state.user_email = getattr(refreshed.user, "email", None) or getattr(refreshed.session.user, "email", None)
@@ -113,8 +114,9 @@ st.title("Research desk")
 st.markdown('<div class="hero"><h2>Your papers, in conversation.</h2><p>Upload research, ask precise questions, and follow every insight back to its source.</p></div>', unsafe_allow_html=True)
 
 try:
-    papers = request(backend, "/papers", token)
-    history = request(backend, "/history", token)
+    with st.spinner("Loading your paper library and research history…"):
+        papers = request(backend, "/papers", token)
+        history = request(backend, "/history", token)
 except Exception as exc:
     st.error(f"Could not load your research workspace: {exc}")
     st.stop()
@@ -185,7 +187,8 @@ with research_tab:
             c1.markdown(f"📄 **{paper['title']}**  \n`{paper['filename']}`")
             if c2.button("×", key=f"delete-{paper['id']}", help="Remove paper"):
                 try:
-                    request(backend, f"/papers/{paper['id']}", token, method="DELETE")
+                    with st.spinner(f"Removing {paper['filename']}…"):
+                        request(backend, f"/papers/{paper['id']}", token, method="DELETE")
                     st.rerun()
                 except Exception as exc:
                     st.error(str(exc))
@@ -204,7 +207,8 @@ with history_tab:
     heading.subheader("Your research trail")
     if action.button("Clear history"):
         try:
-            request(backend, "/history", token, method="DELETE")
+            with st.spinner("Clearing your research history…"):
+                request(backend, "/history", token, method="DELETE")
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
