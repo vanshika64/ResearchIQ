@@ -1,7 +1,7 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 
-ResearchKind = Literal["search", "question", "summary", "comparison", "gaps", "report"]
+ResearchKind = Literal["search", "question", "summary", "comparison", "report"]
 
 class ResearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4000)

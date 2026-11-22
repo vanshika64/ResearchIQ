@@ -81,6 +81,11 @@ def _auth_error(exc):
     lowered = message.lower()
     if "getaddrinfo" in lowered or "11001" in lowered or "name or service not known" in lowered:
         return "Could not reach Supabase Auth. Check the Supabase URL and the app's internet/DNS connection."
+    if "code challenge" in lowered or "code verifier" in lowered or "pkce" in lowered:
+        return (
+            "Google could not verify this sign-in attempt because its browser session changed. "
+            "Close older ResearchIQ sign-in tabs and start Google sign-in again in this same browser."
+        )
     if "email address not authorized" in lowered:
         return "Supabase's default email sender only delivers to authorized team addresses. Configure custom SMTP in Supabase Auth to send confirmation emails to other users."
     if "rate limit" in lowered or "too many requests" in lowered:
@@ -115,7 +120,6 @@ def render(url, anon_key, frontend_url=None, cookies=None):
         st.markdown(
             '<section class="login-hero">'
             '<div class="login-brand"><span class="login-mark">✳</span><span>ResearchIQ</span></div>'
-            '<div class="login-eyebrow">YOUR RESEARCH WORKSPACE</div>'
             '<h1>Read less.<br><span>Understand more.</span></h1>'
             '<div class="login-workspace-label">MEDICAL RESEARCH WORKSPACE</div>'
             '<p class="login-description">Explore medical literature, uncover evidence, and connect research findings with confidence.</p>'
@@ -175,6 +179,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
             if callback_error_query:
                 _clear_oauth_cookies(cookies)
                 cookies.save()
+                st.session_state.pop("google_oauth_url", None)
                 st.query_params.clear()
                 prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
                 st.session_state.auth_callback_error = f"{prefix}: {callback_error_query}"
@@ -187,6 +192,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                     if storage.get_item("researchiq-code-verifier"):
                         result = client.auth.exchange_code_for_session({"auth_code": code})
                         _clear_oauth_cookies(cookies)
+                        st.session_state.pop("google_oauth_url", None)
                         _save_session(result, cookies)
                         st.session_state.verification_waiting = False
                         st.query_params.clear()
@@ -215,6 +221,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         # supabase-py expects an object containing auth_code, not a bare string.
                         result = client.auth.exchange_code_for_session({"auth_code": code})
                         _clear_oauth_cookies(cookies)
+                        st.session_state.pop("google_oauth_url", None)
                         _save_session(result, cookies)
                         st.session_state.verification_waiting = False
                         st.query_params.clear()
@@ -222,6 +229,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                     except Exception as exc:
                         _clear_oauth_cookies(cookies)
                         cookies.save()
+                        st.session_state.pop("google_oauth_url", None)
                         st.query_params.clear()
                         st.session_state.auth_callback_error = f"Could not complete Google sign-in: {_auth_error(exc)}"
                         st.rerun()
@@ -334,24 +342,32 @@ def render(url, anon_key, frontend_url=None, cookies=None):
 
             if not st.session_state.get("verification_waiting", False):
                 try:
-                    _clear_oauth_cookies(cookies)
-                    result = client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": _auth_redirect_url(frontend_url, "google")},
-                    })
-                    cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
-                    cookies[_OAUTH_PENDING_COOKIE] = "1"
-                    cookies.save()
+                    oauth_url = st.session_state.get("google_oauth_url")
+                    if not oauth_url or not storage.has_oauth_verifier():
+                        # Keep the verifier paired with its authorize URL for this
+                        # attempt; regenerating it on every Streamlit rerun makes
+                        # an in-flight callback fail PKCE verification.
+                        _clear_oauth_cookies(cookies)
+                        result = client.auth.sign_in_with_oauth({
+                            "provider": "google",
+                            "options": {"redirect_to": _auth_redirect_url(frontend_url, "google")},
+                        })
+                        oauth_url = result.url
+                        st.session_state.google_oauth_url = oauth_url
+                        cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
+                        cookies[_OAUTH_PENDING_COOKIE] = "1"
+                        cookies.save()
                     st.caption("Google will securely authenticate you, then return you to ResearchIQ.")
                     st.link_button(
                         "![Google](https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg) Continue with Google",
-                        result.url,
+                        oauth_url,
                         use_container_width=True,
                         key="google_sign_in_link",
                     )
                 except Exception as exc:
                     _clear_oauth_cookies(cookies)
                     cookies.save()
+                    st.session_state.pop("google_oauth_url", None)
                     st.error(_auth_error(exc))
         except Exception as exc:
             st.error(_auth_error(exc))
