@@ -12,12 +12,11 @@ if not hasattr(st, "cache"):
 
 from streamlit_cookies_manager import EncryptedCookieManager
 from supabase import create_client
-from components.layout import initialize_theme, styles, sidebar
+from components.layout import styles, sidebar
 from services.api import request
 from views.login import render as render_login
 
-st.set_page_config(page_title="MedLitIQ", page_icon="✳", layout="wide")
-initialize_theme()
+st.set_page_config(page_title="ResearchIQ", page_icon="✳", layout="wide")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 def get_setting(name, default=""):
@@ -63,7 +62,7 @@ with st.spinner("Connecting to the backend. A free Render service may take up to
                 time.sleep(2)
 
 if config is None:
-    st.error(f"Cannot reach the configured MedLitIQ backend at {backend}. Details: {backend_error}")
+    st.error(f"Cannot reach the configured ResearchIQ backend at {backend}. Details: {backend_error}")
     st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, set RESEARCHIQ_API_URL (recommended) or BACKEND_URL in Streamlit Cloud Secrets to the exact live Render service URL, then check the Render logs.")
     st.stop()
 if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
@@ -103,26 +102,16 @@ if "access_token" not in st.session_state:
                 st.warning("Could not restore your saved session because Supabase could not be reached. Check your connection, then sign in again.")
     if "access_token" in st.session_state:
         st.rerun()
-    sidebar(None, cookies=cookies)
+    st.markdown('<div class="eyebrow">YOUR RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
     st.session_state.frontend_url = config.get("frontendUrl", "http://localhost:8501")
     render_login(config.get("supabaseUrl"), config.get("supabaseAnonKey"), cookies=cookies)
     st.stop()
 
 token = st.session_state.access_token
-modes = {
-    "Search": "search",
-    "Ask": "question",
-    "Summarize": "summary",
-    "Compare": "comparison",
-    "Report": "report",
-}
-mode_label = sidebar(st.session_state.get("user_email"), cookies=cookies, research_modes=modes)
-st.markdown(
-    '<section class="workspace-hero"><div class="eyebrow">YOUR MEDICAL RESEARCH WORKSPACE</div>'
-    '<h1>Your next research breakthrough starts here.</h1>'
-    '<p>Explore medical literature, uncover evidence, and connect research findings with confidence.</p></section>',
-    unsafe_allow_html=True,
-)
+sidebar(st.session_state.get("user_email"), cookies=cookies)
+st.markdown('<div class="eyebrow">MEDICAL LITERATURE WORKSPACE</div>', unsafe_allow_html=True)
+st.title("Research desk")
+st.markdown('<div class="hero"><h2>Your papers, in conversation.</h2><p>Upload research, ask precise questions, and follow every insight back to its source.</p></div>', unsafe_allow_html=True)
 
 try:
     papers = request(backend, "/papers", token)
@@ -133,9 +122,11 @@ except Exception as exc:
 
 research_tab, history_tab = st.tabs(["⌕  Research assistant", "◷  Research history"])
 with research_tab:
-    left, right = st.columns([1.55, 1], gap="large")
+    left, right = st.columns([1.65, 1], gap="large")
     with left:
         st.subheader("Ask your library")
+        modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Find gaps": "gaps", "Research report": "report"}
+        mode_label = st.radio("Choose a research task", list(modes), horizontal=True, label_visibility="collapsed")
         selected = st.multiselect("Select papers", options=papers, format_func=lambda p: p["title"],
                                   default=papers if len(papers) < 3 else [], key="selected_papers")
         prompts = {
@@ -143,7 +134,8 @@ with research_tab:
             "Ask": "What would you like to know about these studies?",
             "Summarize": "Summarize the objective, methods, findings, and limitations.",
             "Compare": "Compare these studies across methods, findings, and limitations.",
-            "Report": "Generate a structured report about these papers.",
+            "Find gaps": "What possible research gaps are suggested by these papers?",
+            "Research report": "Generate a structured report about these papers.",
         }
         query = st.text_area("Question or focus", placeholder=prompts[mode_label], height=115)
         if st.button("Find evidence  ↗", type="primary", use_container_width=True, disabled=not selected):
@@ -169,14 +161,13 @@ with research_tab:
                     st.caption(f"[{index}] {source['filename']} · page {source['page']}")
                     st.markdown(f"**{source['title']}**")
                     st.write(source["excerpt"])
-            report = f"# MedLitIQ {result['kind'].title()}\n\n## Query\n{result['query']}\n\n## Findings\n{result['answer']}\n\n## Sources\n"
+            report = f"# ResearchIQ {result['kind'].title()}\n\n## Query\n{result['query']}\n\n## Findings\n{result['answer']}\n\n## Sources\n"
             report += "\n\n".join(f"[{i}] {s['title']} ({s['filename']})\n{s['excerpt']}" for i, s in enumerate(result["sources"], 1))
             st.download_button("⇩ Export structured report", report, file_name="researchiq-report.md", mime="text/markdown")
     with right:
-        with st.container(border=True):
-            st.subheader("Your paper library")
-            st.caption("Medical, disease, biomedical, and healthcare research PDFs only · Private to your account")
-            uploaded = st.file_uploader("Upload research PDFs", type=["pdf"], accept_multiple_files=True)
+        st.subheader("Your paper library")
+        st.caption("Medical, disease, biomedical, and healthcare research PDFs only · Private to your account")
+        uploaded = st.file_uploader("Upload research PDFs", type=["pdf"], accept_multiple_files=True)
         if uploaded:
             for pdf in uploaded:
                 if st.button(f"Add {pdf.name}", key=f"upload-{pdf.name}"):
@@ -189,19 +180,16 @@ with research_tab:
                             st.error(str(exc))
         st.caption(f"{len(papers):02d} PAPERS")
         if not papers:
-            with st.container(border=True):
-                st.markdown("**Your library is ready for its first paper**")
-                st.caption("Upload a text-based medical research PDF to extract pages, index evidence, and begin.")
+            st.info("Your library is empty. Upload a text based PDF to begin.")
         for paper in papers:
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.markdown(f"📄 **{paper['title']}**  \n`{paper['filename']}`")
-                if c2.button("×", key=f"delete-{paper['id']}", help="Remove paper"):
-                    try:
-                        request(backend, f"/papers/{paper['id']}", token, method="DELETE")
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(str(exc))
+            c1, c2 = st.columns([5, 1])
+            c1.markdown(f"📄 **{paper['title']}**  \n`{paper['filename']}`")
+            if c2.button("×", key=f"delete-{paper['id']}", help="Remove paper"):
+                try:
+                    request(backend, f"/papers/{paper['id']}", token, method="DELETE")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
         st.divider()
         st.subheader("Recent activity")
         for item in history[:5]:
