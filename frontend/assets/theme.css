@@ -1,2 +1,75 @@
-.researchiq-caption { color: #718079; font-size: 13px; }
-.researchiq-source { background: #f5f9f5; border: 1px solid #e3ebe4; border-radius: 10px; padding: 12px 14px; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+
+.login-hero {
+  position:relative; isolation:isolate; overflow:hidden; min-height:590px; height:100%;
+  padding:clamp(1.7rem,4vw,3.2rem); border-radius:24px; color:#fff;
+  background:
+    radial-gradient(circle at 7% 12%, rgba(99,210,225,.3), transparent 29%),
+    radial-gradient(circle at 88% 7%, rgba(255,159,135,.35), transparent 26%),
+    linear-gradient(145deg,#20194F 0%,#40327F 52%,#61439A 100%);
+  box-shadow:0 24px 60px rgba(53,41,109,.23);
+}
+.login-brand { display:flex; align-items:center; gap:.7rem; color:#fff; font:700 1.02rem Manrope,sans-serif; letter-spacing:.01em; }
+.login-mark { display:grid; place-items:center; width:2.25rem; height:2.25rem; border-radius:.75rem; color:#30236A; background:linear-gradient(135deg,#B9F0EC,#FFE0C9); font-size:1.2rem; }
+.login-eyebrow { margin-top:3.3rem; color:#B9F0EC; font:700 .76rem Manrope,sans-serif; letter-spacing:.16em; }
+.login-hero h1 { margin:.8rem 0 1.15rem; color:#fff !important; font:800 clamp(2.5rem,4vw,3.8rem)/1.08 Manrope,sans-serif !important; letter-spacing:-.055em !important; }
+.login-hero h1 span { color:#FFD0BE; }
+.login-workspace-label { display:inline-block; padding:.45rem .75rem; border:1px solid rgba(185,240,236,.35); border-radius:999px; background:rgba(185,240,236,.11); color:#D0F8F2; font:700 .72rem "DM Sans",sans-serif; letter-spacing:.12em; }
+.login-description { max-width:560px; margin:1.1rem 0 1.25rem; color:rgba(255,255,255,.88); font:500 1.08rem/1.75 "DM Sans",sans-serif; }
+.login-promise { display:inline-flex; align-items:center; gap:.6rem; max-width:100%; padding:.75rem .9rem; border:1px solid rgba(255,255,255,.2); border-radius:12px; background:rgba(255,255,255,.1); color:#fff; font:600 .86rem/1.5 "DM Sans",sans-serif; }
+.promise-dot { flex:none; width:.55rem; height:.55rem; border-radius:50%; background:#A8EEE5; box-shadow:0 0 0 4px rgba(168,238,229,.15); }
+.login-visual { position:relative; height:150px; margin-top:1.2rem; }
+.visual-orbit { position:absolute; border:1px solid rgba(255,255,255,.16); border-radius:50%; transform:rotate(-13deg); }
+.orbit-one { width:280px; height:84px; right:5%; top:20px; }
+.orbit-two { width:220px; height:120px; right:11%; top:4px; transform:rotate(34deg); }
+.visual-card { position:absolute; display:flex; flex-direction:column; gap:.35rem; border:1px solid rgba(255,255,255,.28); border-radius:12px; box-shadow:0 12px 28px rgba(18,12,54,.25); }
+.card-back { right:5%; top:28px; padding:.7rem .9rem; color:#26204E; background:#C7F2E9; font:700 .77rem "DM Sans",sans-serif; transform:rotate(5deg); }
+.card-front { right:20%; top:43px; width:220px; padding:.8rem 1rem; color:#272047; background:#FFF9F3; transform:rotate(-4deg); }
+.card-front span { color:#7766B2; font:700 .58rem "DM Sans",sans-serif; letter-spacing:.13em; }
+.card-front strong { font:700 .95rem Manrope,sans-serif; }
+.visual-lines { display:grid; gap:4px; margin-top:.15rem; }
+.visual-lines i { display:block; height:4px; width:100%; border-radius:4px; background:#E5E0F3; }
+.visual-lines i:nth-child(2) { width:78%; background:#CDEDE7; }
+.visual-lines i:nth-child(3) { width:54%; background:#F8D7C9; }
+.visual-spark { position:absolute; color:#FFD0BE; }
+.spark-one { right:8%; top:3px; font-size:1.2rem; }
+.spark-two { right:43%; bottom:4px; color:#B9F0EC; font-size:1.5rem; }
+
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) {
+  align-self:stretch; padding:clamp(1.15rem,2.5vw,2.1rem); border:1px solid #E8E4F3;
+  border-radius:22px; background:#fff; box-shadow:0 18px 48px rgba(40,31,91,.1);
+}
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) h3 {
+  margin-top:.25rem; color:#252044 !important; font:800 1.65rem Manrope,sans-serif !important; letter-spacing:-.04em !important;
+}
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) label { color:#3C3854; font:600 .9rem "DM Sans",sans-serif; }
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) input {
+  border:1px solid #DDD9EA !important; border-radius:11px !important; background:#FCFBFF !important;
+}
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) input:focus { border-color:#755BE7 !important; box-shadow:0 0 0 3px rgba(117,91,231,.14) !important; }
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) button[data-testid="stBaseButton-primary"] {
+  border:1px solid #6550D5 !important; border-radius:11px !important; background:linear-gradient(110deg,#6550D5,#8469E8) !important;
+  color:#fff !important; font:700 .95rem "DM Sans",sans-serif !important; box-shadow:0 8px 18px rgba(101,80,213,.22);
+}
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) button[data-testid="stBaseButton-primary"]:hover { background:linear-gradient(110deg,#5340C2,#7155D8) !important; }
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) button[data-testid="stBaseButton-secondary"],
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) [data-testid="stLinkButton"] a {
+  border:1px solid #DDD9EA !important; border-radius:11px !important; background:#fff !important; color:#393451 !important;
+  font:600 .92rem "DM Sans",sans-serif !important;
+}
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) button[data-testid="stBaseButton-secondary"]:hover,
+[data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) [data-testid="stLinkButton"] a:hover { border-color:#8469E8 !important; color:#6550D5 !important; }
+
+@media (max-width: 900px) {
+  .login-hero { min-height:500px; }
+  .login-eyebrow { margin-top:2rem; }
+}
+@media (max-width: 640px) {
+  .login-hero { min-height:auto; padding:1.45rem; border-radius:18px; }
+  .login-eyebrow { margin-top:1.7rem; }
+  .login-hero h1 { font-size:2.35rem !important; }
+  .login-description { font-size:1rem; }
+  .login-visual { height:120px; }
+  .card-front { right:16%; }
+  .login-promise { font-size:.78rem; }
+}

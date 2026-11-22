@@ -110,11 +110,23 @@ def _is_invalid_credentials(exc):
 
 def render(url, anon_key, frontend_url=None, cookies=None):
     frontend_url = (frontend_url or st.session_state.get("frontend_url", "http://localhost:8501")).strip().rstrip("/")
-    left, right = st.columns([1.2, 1])
+    left, right = st.columns([1.15, 1], gap="large")
     with left:
-        st.markdown("# Read less.\n# Understand more.")
-        st.markdown("Your medical literature workspace. Ask questions across papers, trace every answer to evidence, and turn dense research into clear next steps.")
-        st.info("Evidence-led discovery · Private research library · Cited responses")
+        st.markdown(
+            '<section class="login-hero">'
+            '<div class="login-brand"><span class="login-mark">✳</span><span>ResearchIQ</span></div>'
+            '<div class="login-eyebrow">YOUR RESEARCH WORKSPACE</div>'
+            '<h1>Read less.<br><span>Understand more.</span></h1>'
+            '<div class="login-workspace-label">MEDICAL RESEARCH WORKSPACE</div>'
+            '<p class="login-description">Explore medical literature, uncover evidence, and connect research findings with confidence.</p>'
+            '<div class="login-promise"><span class="promise-dot"></span>Evidence-led discovery · Private paper library · Cited responses</div>'
+            '<div class="login-visual" aria-hidden="true"><div class="visual-orbit orbit-one"></div>'
+            '<div class="visual-orbit orbit-two"></div><div class="visual-card card-back">✦ &nbsp; Evidence library</div>'
+            '<div class="visual-card card-front"><span>RESEARCH INSIGHT</span><strong>Evidence, connected.</strong>'
+            '<div class="visual-lines"><i></i><i></i><i></i></div></div><span class="visual-spark spark-one">✦</span>'
+            '<span class="visual-spark spark-two">✧</span></div></section>',
+            unsafe_allow_html=True,
+        )
     with right:
         st.markdown("### Sign in to ResearchIQ")
         if not url or not anon_key or "placeholder" in url.lower() or "placeholder" in anon_key.lower():
