@@ -99,6 +99,10 @@ p, label, [data-testid="stMarkdownContainer"] { font-family: "DM Sans", sans-ser
     background: linear-gradient(110deg, var(--white), var(--green-pale)) !important;
 }
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover { background: var(--mint) !important; }
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"],
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] p,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] span,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] div { color: #000000 !important; }
 [data-testid="stSidebar"] a { color: var(--mint); }
 
 /* 5. Buttons and action states */
@@ -116,6 +120,17 @@ p, label, [data-testid="stMarkdownContainer"] { font-family: "DM Sans", sans-ser
     transform: translateY(-1px);
     box-shadow: 0 10px 22px rgba(31,107,80,.24);
 }
+[data-testid="stDownloadButton"] button:hover,
+[data-testid="stDownloadButton"] button:focus-visible,
+[data-testid="stDownloadButton"] button:active {
+    color: var(--white) !important;
+    border-color: var(--emerald) !important;
+    background: linear-gradient(110deg, var(--emerald), var(--forest)) !important;
+    filter: brightness(1.08);
+}
+[data-testid="stDownloadButton"] button:hover p,
+[data-testid="stDownloadButton"] button:focus-visible p,
+[data-testid="stDownloadButton"] button:active p { color: var(--white) !important; }
 [data-testid="stBaseButton-secondary"] {
     border: 1px solid #C9DCCF !important;
     border-radius: 11px !important;
