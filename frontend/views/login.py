@@ -200,7 +200,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
             '<div class="login-brand-lockup"><span class="login-mark" aria-hidden="true">M</span>'
             '<span class="login-brand-copy"><strong>MedNext</strong><small>MEDICAL RESEARCH ASSISTANT</small></span></div>'
             '<div class="login-workspace-label">MEDICAL EVIDENCE WORKSPACE</div>'
-            '<h1>Stop hunting through PDFs.<br><span>Start connecting evidence.</span></h1>'
+            '<h1>Move from<br><span>papers to progress.</span></h1>'
             '<p class="login-description">Bring medical studies into focus. Explore the evidence, connect findings, and make your next research question count.</p>'
             '<div class="login-promise"><span class="promise-dot"></span>Private paper library · Evidence-linked answers · Clear research summaries</div>'
             '<div class="login-brand-signoff">A more thoughtful way to read medical research.</div></section>',
