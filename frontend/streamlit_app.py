@@ -62,8 +62,8 @@ with st.spinner("Connecting to the backend. A free Render service may take up to
                 time.sleep(2)
 
 if config is None:
-    st.error(f"Cannot reach the configured MedNext backend at {backend}. Details: {backend_error}")
-    st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, set RESEARCHIQ_API_URL (recommended) or BACKEND_URL in Streamlit Cloud Secrets to the exact live Render service URL, then check the Render logs.")
+    st.error("Cannot reach the configured MedNext backend.")
+    st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, set BACKEND_URL in Streamlit Cloud Secrets to the live backend URL, then check the service logs.")
     st.stop()
 if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
     st.error("The backend is reachable, but it did not provide Supabase configuration. Set SUPABASE_URL and SUPABASE_ANON_KEY in the Render backend environment, then redeploy.")
