@@ -113,9 +113,17 @@ if "access_token" not in st.session_state:
 
 token = st.session_state.access_token
 sidebar(st.session_state.get("user_email"), cookies=cookies)
-st.markdown('<div class="eyebrow">MEDNEXT · MEDICAL EVIDENCE WORKSPACE</div>', unsafe_allow_html=True)
-st.title("Your research space")
-st.markdown('<div class="hero"><h2>Make every paper more useful.</h2><p>Explore medical research, connect findings across studies, and follow every answer back to its source.</p></div>', unsafe_allow_html=True)
+st.markdown(
+    '<header class="workspace-hero">'
+    '<div class="workspace-brand">'
+    '<span class="workspace-brand-kicker">MEDICAL RESEARCH WORKSPACE</span>'
+    '<h1>MedNext</h1>'
+    '<p>Your medical paper space for exploring evidence, comparing findings, and seeing what matters.</p>'
+    '</div>'
+    '<div class="workspace-highlight"><span>READ WITH CLARITY</span><strong>Evidence, connected.</strong></div>'
+    '</header>',
+    unsafe_allow_html=True,
+)
 
 try:
     with st.spinner("Loading your paper library and research history…"):
