@@ -340,6 +340,14 @@ hr { border-color: var(--border) !important; }
 [data-testid="stHorizontalBlock"]:has(.login-hero) > [data-testid="column"]:nth-child(2) [data-testid="stLinkButton"] a:hover { border-color:var(--sage) !important; color:var(--emerald) !important; background:var(--green-pale) !important; }
 
 /* 11. Responsive layout and reduced motion */
+.viewerBadge_container__r5tak,
+.viewerBadge_link__qRIco,
+._profileContainer_gzau3_53,
+[data-testid="stViewerBadge"] {
+    display:none !important;
+    visibility:hidden !important;
+}
+
 @media (max-width: 900px) {
     .block-container { padding-top:1.25rem; }
     .login-hero { min-height:500px; }
