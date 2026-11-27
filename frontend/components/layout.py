@@ -12,8 +12,8 @@ def styles():
 
 def sidebar(email, cookies=None):
     with st.sidebar:
-        st.markdown("## ✳ ResearchIQ")
-        st.caption("MEDICAL LITERATURE WORKSPACE")
+        st.markdown("## ◈ MedNext")
+        st.caption("MEDICAL EVIDENCE WORKSPACE")
         st.divider()
         st.markdown(f"**{email or 'Researcher'}**")
         if st.button("Sign out", use_container_width=True):

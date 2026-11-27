@@ -16,7 +16,7 @@ from components.layout import styles, sidebar
 from services.api import request
 from views.login import render as render_login
 
-st.set_page_config(page_title="ResearchIQ", page_icon="✳", layout="wide")
+st.set_page_config(page_title="MedNext", page_icon="◈", layout="wide")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 def get_setting(name, default=""):
@@ -62,7 +62,7 @@ with st.spinner("Connecting to the backend. A free Render service may take up to
                 time.sleep(2)
 
 if config is None:
-    st.error(f"Cannot reach the configured ResearchIQ backend at {backend}. Details: {backend_error}")
+    st.error(f"Cannot reach the configured MedNext backend at {backend}. Details: {backend_error}")
     st.info("If this is a free Render service, wait for it to wake and refresh. If it keeps failing, set RESEARCHIQ_API_URL (recommended) or BACKEND_URL in Streamlit Cloud Secrets to the exact live Render service URL, then check the Render logs.")
     st.stop()
 if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
@@ -70,9 +70,13 @@ if not config.get("supabaseUrl") or not config.get("supabaseAnonKey"):
     st.stop()
 
 if "access_token" not in st.session_state:
-    auth_callback_in_progress = bool(st.query_params.get("code"))
+    auth_callback_in_progress = bool(
+        st.query_params.get("code")
+        or st.query_params.get("error")
+        or st.query_params.get("error_description")
+    )
     refresh_token = cookies.get("refresh_token")
-    if refresh_token and config.get("supabaseUrl") and config.get("supabaseAnonKey"):
+    if not auth_callback_in_progress and refresh_token and config.get("supabaseUrl") and config.get("supabaseAnonKey"):
         try:
             with st.spinner("Restoring your saved sign-in session…"):
                 auth_client = create_client(config["supabaseUrl"], config["supabaseAnonKey"])
@@ -109,9 +113,9 @@ if "access_token" not in st.session_state:
 
 token = st.session_state.access_token
 sidebar(st.session_state.get("user_email"), cookies=cookies)
-st.markdown('<div class="eyebrow">MEDICAL LITERATURE WORKSPACE</div>', unsafe_allow_html=True)
-st.title("Research desk")
-st.markdown('<div class="hero"><h2>Your papers, in conversation.</h2><p>Upload research, ask precise questions, and follow every insight back to its source.</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="eyebrow">MEDNEXT · MEDICAL EVIDENCE WORKSPACE</div>', unsafe_allow_html=True)
+st.title("Your research space")
+st.markdown('<div class="hero"><h2>Make every paper more useful.</h2><p>Explore medical research, connect findings across studies, and follow every answer back to its source.</p></div>', unsafe_allow_html=True)
 
 try:
     with st.spinner("Loading your paper library and research history…"):
@@ -123,11 +127,19 @@ except Exception as exc:
 
 research_tab, history_tab = st.tabs(["⌕  Research assistant", "◷  Research history"])
 with research_tab:
-    left, right = st.columns([1.65, 1], gap="large")
+    mode_col, left, right = st.columns([0.62, 1.55, 1], gap="medium")
+    modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Research report": "report"}
+    with mode_col:
+        st.subheader("Research mode")
+        mode_label = st.radio(
+            "Choose a research task",
+            list(modes),
+            horizontal=False,
+            label_visibility="collapsed",
+            key="research_mode",
+        )
     with left:
         st.subheader("Ask your library")
-        modes = {"Search": "search", "Ask": "question", "Summarize": "summary", "Compare": "comparison", "Research report": "report"}
-        mode_label = st.radio("Choose a research task", list(modes), horizontal=True, label_visibility="collapsed")
         selected = st.multiselect("Select papers", options=papers, format_func=lambda p: p["title"],
                                   default=papers if len(papers) < 3 else [], key="selected_papers")
         prompts = {
@@ -161,9 +173,9 @@ with research_tab:
                     st.caption(f"[{index}] {source['filename']} · page {source['page']}")
                     st.markdown(f"**{source['title']}**")
                     st.write(source["excerpt"])
-            report = f"# ResearchIQ {result['kind'].title()}\n\n## Query\n{result['query']}\n\n## Findings\n{result['answer']}\n\n## Sources\n"
+            report = f"# MedNext {result['kind'].title()}\n\n## Query\n{result['query']}\n\n## Findings\n{result['answer']}\n\n## Sources\n"
             report += "\n\n".join(f"[{i}] {s['title']} ({s['filename']})\n{s['excerpt']}" for i, s in enumerate(result["sources"], 1))
-            st.download_button("⇩ Export structured report", report, file_name="researchiq-report.md", mime="text/markdown")
+            st.download_button("⇩ Export structured report", report, file_name="mednext-report.md", mime="text/markdown")
     with right:
         st.subheader("Your paper library")
         st.caption("Medical, disease, biomedical, and healthcare research PDFs only · Private to your account")

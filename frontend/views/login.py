@@ -84,7 +84,7 @@ def _auth_error(exc):
     if "code challenge" in lowered or "code verifier" in lowered or "pkce" in lowered:
         return (
             "Google could not verify this sign-in attempt because its browser session changed. "
-            "Close older ResearchIQ sign-in tabs and start Google sign-in again in this same browser."
+            "Close older MedNext sign-in tabs and start Google sign-in again in this same browser."
         )
     if "email address not authorized" in lowered:
         return "Supabase's default email sender only delivers to authorized team addresses. Configure custom SMTP in Supabase Auth to send confirmation emails to other users."
@@ -113,26 +113,101 @@ def _is_invalid_credentials(exc):
     ))
 
 
+def _process_auth_callback(client, storage, cookies, frontend_url):
+    """Finish auth redirects before rendering the anonymous sign-in view."""
+    code = st.query_params.get("code")
+    auth_flow = st.query_params.get("auth_flow")
+    callback_error = st.query_params.get("error_description") or st.query_params.get("error")
+    if not code and not callback_error:
+        return
+
+    if callback_error:
+        _clear_oauth_cookies(cookies)
+        cookies.save()
+        st.session_state.pop("google_oauth_url", None)
+        prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
+        st.session_state.auth_callback_error = f"{prefix}: {callback_error}"
+        st.query_params.clear()
+        st.rerun()
+
+    try:
+        if auth_flow == "email":
+            try:
+                if storage.get_item("researchiq-code-verifier"):
+                    result = client.auth.exchange_code_for_session({"auth_code": code})
+                    _clear_oauth_cookies(cookies)
+                    cookies.save()
+                    st.session_state.pop("google_oauth_url", None)
+                    _save_session(result, cookies)
+                    st.session_state.verification_waiting = False
+                    st.query_params.clear()
+                    st.rerun()
+            except Exception:
+                # Supabase has confirmed the email; cross-device confirmation
+                # may not have the PKCE verifier from the original browser.
+                pass
+            _clear_oauth_cookies(cookies)
+            cookies.save()
+            st.session_state.verification_waiting = False
+            st.session_state.pop("signup_notice", None)
+            st.session_state.pop("signup_notice_type", None)
+            st.session_state.verification_returned = True
+            st.query_params.clear()
+            st.rerun()
+
+        is_google_callback = auth_flow == "google" or (not auth_flow and storage.has_oauth_verifier())
+        if is_google_callback:
+            if not storage.has_oauth_verifier():
+                raise RuntimeError("Google sign-in expired before it finished. Click Continue with Google and complete the sign-in within 15 minutes.")
+            result = client.auth.exchange_code_for_session({"auth_code": code})
+            _clear_oauth_cookies(cookies)
+            cookies.save()
+            st.session_state.pop("google_oauth_url", None)
+            _save_session(result, cookies)
+            st.session_state.verification_waiting = False
+            st.query_params.clear()
+            st.rerun()
+
+        raise RuntimeError(
+            "The sign-in callback did not include its flow type. Add the app's email and Google URLs under Supabase Auth → URL Configuration → Redirect URLs, then retry. "
+            f"Expected URLs: {_auth_redirect_url(frontend_url, 'google')} and {_auth_redirect_url(frontend_url, 'email')}"
+        )
+    except Exception as exc:
+        _clear_oauth_cookies(cookies)
+        cookies.save()
+        st.session_state.pop("google_oauth_url", None)
+        st.session_state.auth_callback_error = f"Could not complete Google sign-in: {_auth_error(exc)}"
+        st.query_params.clear()
+        st.rerun()
+
+
 def render(url, anon_key, frontend_url=None, cookies=None):
     frontend_url = (frontend_url or st.session_state.get("frontend_url", "http://localhost:8501")).strip().rstrip("/")
+    client = st.session_state.get("supabase_client")
+    storage = st.session_state.get("supabase_auth_storage")
+    if url and anon_key and "placeholder" not in url.lower() and "placeholder" not in anon_key.lower():
+        if client is None or storage is None:
+            storage = _CookieAuthStorage(cookies)
+            client = create_client(url, anon_key, ClientOptions(storage=storage, flow_type="pkce"))
+            st.session_state.supabase_client = client
+            st.session_state.supabase_auth_storage = storage
+        _process_auth_callback(client, storage, cookies, frontend_url)
+
     left, right = st.columns([1.15, 1], gap="large")
     with left:
         st.markdown(
             '<section class="login-hero">'
-            '<div class="login-brand"><span class="login-mark">✳</span><span>ResearchIQ</span></div>'
-            '<h1>Read less.<br><span>Understand more.</span></h1>'
-            '<div class="login-workspace-label">MEDICAL RESEARCH WORKSPACE</div>'
-            '<p class="login-description">Explore medical literature, uncover evidence, and connect research findings with confidence.</p>'
-            '<div class="login-promise"><span class="promise-dot"></span>Evidence-led discovery · Private paper library · Cited responses</div>'
-            '<div class="login-visual" aria-hidden="true"><div class="visual-orbit orbit-one"></div>'
-            '<div class="visual-orbit orbit-two"></div><div class="visual-card card-back">✦ &nbsp; Evidence library</div>'
-            '<div class="visual-card card-front"><span>RESEARCH INSIGHT</span><strong>Evidence, connected.</strong>'
-            '<div class="visual-lines"><i></i><i></i><i></i></div></div><span class="visual-spark spark-one">✦</span>'
-            '<span class="visual-spark spark-two">✧</span></div></section>',
+            '<div class="login-brand-lockup"><span class="login-mark" aria-hidden="true">M</span>'
+            '<span class="login-brand-copy"><strong>MedNext</strong><small>MEDICAL RESEARCH ASSISTANT</small></span></div>'
+            '<div class="login-workspace-label">MEDICAL EVIDENCE WORKSPACE</div>'
+            '<h1>Move from<br><span>papers to progress.</span></h1>'
+            '<p class="login-description">Bring medical studies into focus. Explore the evidence, connect findings, and make your next research question count.</p>'
+            '<div class="login-promise"><span class="promise-dot"></span>Private paper library · Evidence-linked answers · Clear research summaries</div>'
+            '<div class="login-brand-signoff">A more thoughtful way to read medical research.</div></section>',
             unsafe_allow_html=True,
         )
     with right:
-        st.markdown("### Sign in to ResearchIQ")
+        st.markdown("### Welcome to MedNext")
         if not url or not anon_key or "placeholder" in url.lower() or "placeholder" in anon_key.lower():
             st.error("Set SUPABASE_URL and SUPABASE_ANON_KEY in the backend environment, then restart the backend.")
             return
@@ -172,86 +247,6 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                 )
                 st.session_state.supabase_client = client
                 st.session_state.supabase_auth_storage = storage
-
-            code = st.query_params.get("code")
-            auth_flow = st.query_params.get("auth_flow")
-            callback_error_query = st.query_params.get("error_description") or st.query_params.get("error")
-            if callback_error_query:
-                _clear_oauth_cookies(cookies)
-                cookies.save()
-                st.session_state.pop("google_oauth_url", None)
-                st.query_params.clear()
-                prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
-                st.session_state.auth_callback_error = f"{prefix}: {callback_error_query}"
-                st.rerun()
-            if code and auth_flow == "email":
-                # Supabase verifies the email link before redirecting here. Exchange
-                # the PKCE code when the original browser still has its verifier;
-                # cross-device confirmation can still finish and sign in manually.
-                try:
-                    if storage.get_item("researchiq-code-verifier"):
-                        result = client.auth.exchange_code_for_session({"auth_code": code})
-                        _clear_oauth_cookies(cookies)
-                        st.session_state.pop("google_oauth_url", None)
-                        _save_session(result, cookies)
-                        st.session_state.verification_waiting = False
-                        st.query_params.clear()
-                        st.rerun()
-                except Exception:
-                    # Confirmation itself has already been accepted by Supabase.
-                    pass
-                _clear_oauth_cookies(cookies)
-                cookies.save()
-                st.query_params.clear()
-                st.session_state.verification_waiting = False
-                st.session_state.pop("signup_notice", None)
-                st.session_state.pop("signup_notice_type", None)
-                st.session_state.verification_returned = True
-                st.rerun()
-            elif code and (
-                auth_flow == "google"
-                or (
-                    not auth_flow
-                    and not st.session_state.get("verification_waiting", False)
-                    and storage.has_oauth_verifier()
-                )
-            ):
-                if storage.has_oauth_verifier():
-                    try:
-                        # supabase-py expects an object containing auth_code, not a bare string.
-                        result = client.auth.exchange_code_for_session({"auth_code": code})
-                        _clear_oauth_cookies(cookies)
-                        st.session_state.pop("google_oauth_url", None)
-                        _save_session(result, cookies)
-                        st.session_state.verification_waiting = False
-                        st.query_params.clear()
-                        st.rerun()
-                    except Exception as exc:
-                        _clear_oauth_cookies(cookies)
-                        cookies.save()
-                        st.session_state.pop("google_oauth_url", None)
-                        st.query_params.clear()
-                        st.session_state.auth_callback_error = f"Could not complete Google sign-in: {_auth_error(exc)}"
-                        st.rerun()
-                else:
-                    _clear_oauth_cookies(cookies)
-                    cookies.save()
-                    st.query_params.clear()
-                    st.session_state.auth_callback_error = "Google sign-in expired before it finished. Click Continue with Google and complete the sign-in within 15 minutes."
-                    st.rerun()
-            elif code:
-                # Never report an unknown callback as a successful email confirmation.
-                # Google callbacks must preserve auth_flow through Supabase's redirect allowlist.
-                _clear_oauth_cookies(cookies)
-                cookies.save()
-                st.query_params.clear()
-                st.session_state.auth_callback_error = (
-                    "The sign-in callback did not include its flow type, so the app could not safely finish authentication. "
-                    "Add these exact URLs under Supabase Auth → URL Configuration → Redirect URLs: "
-                    f"{_auth_redirect_url(frontend_url, 'google')} and "
-                    f"{_auth_redirect_url(frontend_url, 'email')}, then retry."
-                )
-                st.rerun()
 
             signin, signup = st.columns(2)
             with signin:
@@ -357,7 +352,7 @@ def render(url, anon_key, frontend_url=None, cookies=None):
                         cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
                         cookies[_OAUTH_PENDING_COOKIE] = "1"
                         cookies.save()
-                    st.caption("Google will securely authenticate you, then return you to ResearchIQ.")
+                    st.caption("Google will securely authenticate you, then return you to MedNext.")
                     st.link_button(
                         "![Google](https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg) Continue with Google",
                         oauth_url,
