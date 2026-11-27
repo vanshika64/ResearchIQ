@@ -6,6 +6,7 @@ import streamlit as st
 from supabase import ClientOptions, create_client
 
 _OAUTH_COOKIE = "researchiq_oauth_code_verifier"
+_OAUTH_URL_COOKIE = "researchiq_oauth_url"
 _OAUTH_STARTED_COOKIE = "researchiq_oauth_started_at"
 _OAUTH_PENDING_COOKIE = "researchiq_oauth_pending"
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -45,7 +46,7 @@ class _CookieAuthStorage:
 
 def _clear_oauth_cookies(cookies):
     changed = False
-    for key in (_OAUTH_COOKIE, _OAUTH_STARTED_COOKIE, _OAUTH_PENDING_COOKIE):
+    for key in (_OAUTH_COOKIE, _OAUTH_URL_COOKIE, _OAUTH_STARTED_COOKIE, _OAUTH_PENDING_COOKIE):
         if cookies.get(key):
             del cookies[key]
             changed = True
@@ -339,28 +340,47 @@ def render(url, anon_key, frontend_url=None, cookies=None):
 
             if not st.session_state.get("verification_waiting", False):
                 try:
-                    oauth_url = st.session_state.get("google_oauth_url")
-                    if not oauth_url or not storage.has_oauth_verifier():
-                        # Keep the verifier paired with its authorize URL for this
-                        # attempt; regenerating it on every Streamlit rerun makes
-                        # an in-flight callback fail PKCE verification.
-                        _clear_oauth_cookies(cookies)
-                        result = client.auth.sign_in_with_oauth({
-                            "provider": "google",
-                            "options": {"redirect_to": _auth_redirect_url(frontend_url, "google")},
-                        })
-                        oauth_url = result.url
-                        st.session_state.google_oauth_url = oauth_url
-                        cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
-                        cookies[_OAUTH_PENDING_COOKIE] = "1"
-                        cookies.save()
-                    st.caption("Google will securely authenticate you, then return you to MedNext.")
-                    st.link_button(
-                        "![Google](https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg) Continue with Google",
-                        oauth_url,
-                        use_container_width=True,
-                        key="google_sign_in_link",
+                    oauth_url = (
+                        st.session_state.get("google_oauth_url")
+                        or cookies.get(_OAUTH_URL_COOKIE)
                     )
+                    if oauth_url:
+                        st.session_state.google_oauth_url = oauth_url
+
+                    if storage.has_oauth_verifier() and not oauth_url:
+                        st.warning(
+                            "A Google sign-in is already in progress in another tab. Finish it there, or restart the sign-in if that tab was closed."
+                        )
+                        if st.button("Restart Google sign-in", key="restart_google_sign_in"):
+                            _clear_oauth_cookies(cookies)
+                            cookies.save()
+                            st.session_state.pop("google_oauth_url", None)
+                            st.rerun()
+                    else:
+                        if not storage.has_oauth_verifier():
+                            # Generate one authorize URL and persist it with its
+                            # PKCE verifier so a Streamlit session refresh cannot
+                            # replace the verifier while Google's callback is pending.
+                            _clear_oauth_cookies(cookies)
+                            result = client.auth.sign_in_with_oauth({
+                                "provider": "google",
+                                "options": {"redirect_to": _auth_redirect_url(frontend_url, "google")},
+                            })
+                            oauth_url = result.url
+                            st.session_state.google_oauth_url = oauth_url
+                            cookies[_OAUTH_URL_COOKIE] = oauth_url
+                            cookies[_OAUTH_STARTED_COOKIE] = str(time.time())
+                            cookies[_OAUTH_PENDING_COOKIE] = "1"
+                            cookies.save()
+
+                    if oauth_url and storage.has_oauth_verifier():
+                        st.caption("Google will securely authenticate you, then return you to MedNext.")
+                        st.link_button(
+                            "![Google](https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg) Continue with Google",
+                            oauth_url,
+                            use_container_width=True,
+                            key="google_sign_in_link",
+                        )
                 except Exception as exc:
                     _clear_oauth_cookies(cookies)
                     cookies.save()
