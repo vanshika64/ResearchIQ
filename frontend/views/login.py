@@ -37,15 +37,10 @@ class _CookieAuthStorage:
             self.memory.pop(key, None)
 
     def has_oauth_verifier(self):
-        try:
-            started = float(self.cookies.get(_OAUTH_STARTED_COOKIE) or "0")
-        except (TypeError, ValueError):
-            started = 0
-        return (
-            self.cookies.get(_OAUTH_PENDING_COOKIE) == "1"
-            and bool(self.cookies.get(_OAUTH_COOKIE))
-            and 0 <= time.time() - started < 900
-        )
+        # The PKCE verifier is the value Supabase needs to redeem its one-time
+        # callback code. Auxiliary timestamp/marker cookies can be lost on mobile
+        # browser hand-offs, so do not reject a valid verifier because of them.
+        return bool(self.cookies.get(_OAUTH_COOKIE))
 
 
 def _clear_oauth_cookies(cookies):
@@ -122,10 +117,13 @@ def _process_auth_callback(client, storage, cookies, frontend_url):
         return
 
     if callback_error:
+        google_flow = auth_flow == "google" or (
+            auth_flow != "email" and storage.has_oauth_verifier()
+        )
         _clear_oauth_cookies(cookies)
         cookies.save()
         st.session_state.pop("google_oauth_url", None)
-        prefix = "Google sign-in was not completed" if auth_flow == "google" else "Email confirmation could not be completed"
+        prefix = "Google sign-in was not completed" if google_flow else "Email confirmation could not be completed"
         st.session_state.auth_callback_error = f"{prefix}: {callback_error}"
         st.query_params.clear()
         st.rerun()
@@ -155,10 +153,14 @@ def _process_auth_callback(client, storage, cookies, frontend_url):
             st.query_params.clear()
             st.rerun()
 
-        is_google_callback = auth_flow == "google" or (not auth_flow and storage.has_oauth_verifier())
+        is_google_callback = auth_flow == "google" or (
+            auth_flow != "email" and storage.has_oauth_verifier()
+        )
         if is_google_callback:
             if not storage.has_oauth_verifier():
-                raise RuntimeError("Google sign-in expired before it finished. Click Continue with Google and complete the sign-in within 15 minutes.")
+                raise RuntimeError(
+                    "The Google sign-in verifier is missing. Start and finish Google sign-in in the same browser, then try again."
+                )
             result = client.auth.exchange_code_for_session({"auth_code": code})
             _clear_oauth_cookies(cookies)
             cookies.save()
@@ -169,7 +171,7 @@ def _process_auth_callback(client, storage, cookies, frontend_url):
             st.rerun()
 
         raise RuntimeError(
-            "The sign-in callback did not include its flow type. Add the app's email and Google URLs under Supabase Auth → URL Configuration → Redirect URLs, then retry. "
+            "The callback could not be matched to a pending sign-in. Add the app's email and Google URLs under Supabase Auth → URL Configuration → Redirect URLs, then start again. "
             f"Expected URLs: {_auth_redirect_url(frontend_url, 'google')} and {_auth_redirect_url(frontend_url, 'email')}"
         )
     except Exception as exc:
