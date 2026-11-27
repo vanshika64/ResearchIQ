@@ -189,7 +189,15 @@ def render(url, anon_key, frontend_url=None, cookies=None):
     client = st.session_state.get("supabase_client")
     storage = st.session_state.get("supabase_auth_storage")
     if url and anon_key and "placeholder" not in url.lower() and "placeholder" not in anon_key.lower():
-        if client is None or storage is None:
+        callback_in_progress = bool(
+            st.query_params.get("code")
+            or st.query_params.get("error")
+            or st.query_params.get("error_description")
+        )
+        if callback_in_progress or client is None or storage is None:
+            # On a full OAuth redirect, rebuild storage from the browser cookies
+            # delivered with this request instead of trusting a prior Streamlit
+            # session's in-memory cookie snapshot.
             storage = _CookieAuthStorage(cookies)
             client = create_client(url, anon_key, ClientOptions(storage=storage, flow_type="pkce"))
             st.session_state.supabase_client = client
@@ -341,8 +349,8 @@ def render(url, anon_key, frontend_url=None, cookies=None):
             if not st.session_state.get("verification_waiting", False):
                 try:
                     oauth_url = (
-                        st.session_state.get("google_oauth_url")
-                        or cookies.get(_OAUTH_URL_COOKIE)
+                        cookies.get(_OAUTH_URL_COOKIE)
+                        or st.session_state.get("google_oauth_url")
                     )
                     if oauth_url:
                         st.session_state.google_oauth_url = oauth_url
